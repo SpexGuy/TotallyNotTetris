@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# .zig files must use unix line endings
+*.zig text eol=lf
