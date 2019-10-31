@@ -14,6 +14,12 @@ const enableValidationLayers = std.debug.runtime_safety;
 const validationLayers = [_][*]const u8{c"VK_LAYER_LUNARG_standard_validation"};
 const deviceExtensions = [_][*]const u8{c.VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
+const vertexData = [_]Vertex{
+    Vertex.init(0, -0.5, 1, 0.5, 0),
+    Vertex.init(0.5, 0.5, 0, 1, 1),
+    Vertex.init(-0.5, 0.5, 0.5, 0, 1),
+};
+
 var currentFrame: usize = 0;
 var instance: c.VkInstance = undefined;
 var callback: c.VkDebugReportCallbackEXT = undefined;
@@ -33,10 +39,53 @@ var graphicsPipeline: c.VkPipeline = undefined;
 var swapChainFramebuffers: []c.VkFramebuffer = undefined;
 var commandPool: c.VkCommandPool = undefined;
 var commandBuffers: []c.VkCommandBuffer = undefined;
+var vertexBuffer: c.VkBuffer = undefined;
+var vertexBufferMemory: c.VkDeviceMemory = undefined;
 
 var imageAvailableSemaphores: [MAX_FRAMES_IN_FLIGHT]c.VkSemaphore = undefined;
 var renderFinishedSemaphores: [MAX_FRAMES_IN_FLIGHT]c.VkSemaphore = undefined;
 var inFlightFences: [MAX_FRAMES_IN_FLIGHT]c.VkFence = undefined;
+
+const Vertex = extern struct {
+    px: f32,
+    py: f32,
+    cr: f32,
+    cg: f32,
+    cb: f32,
+
+    pub fn init(px: f32, py: f32, cr: f32, cg: f32, cb: f32) Vertex {
+        return Vertex{
+            .px = px,
+            .py = py,
+            .cr = cr,
+            .cg = cg,
+            .cb = cb,
+        };
+    }
+
+    const BindingDescriptions = [_]c.VkVertexInputBindingDescription{
+        c.VkVertexInputBindingDescription{
+            .binding = 0,
+            .stride = @sizeOf(Vertex),
+            .inputRate = .VK_VERTEX_INPUT_RATE_VERTEX,
+        },
+    };
+
+    const AttributeDescriptions = [_]c.VkVertexInputAttributeDescription{
+        c.VkVertexInputAttributeDescription{
+            .binding = 0,
+            .location = 0,
+            .format = .VK_FORMAT_R32G32_SFLOAT,
+            .offset = @byteOffsetOf(Vertex, "px"),
+        },
+        c.VkVertexInputAttributeDescription{
+            .binding = 0,
+            .location = 1,
+            .format = .VK_FORMAT_R32G32B32_SFLOAT,
+            .offset = @byteOffsetOf(Vertex, "cr"),
+        },
+    };
+};
 
 const QueueFamilyIndices = struct {
     graphicsFamily: ?u32,
@@ -121,6 +170,8 @@ fn cleanup() void {
     }
 
     c.vkDestroySwapchainKHR(global_device, swapChain, null);
+    c.vkDestroyBuffer(global_device, vertexBuffer, null);
+    c.vkFreeMemory(global_device, vertexBufferMemory, null);
     c.vkDestroyDevice(global_device, null);
 
     if (enableValidationLayers) {
@@ -143,8 +194,62 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try createGraphicsPipeline(allocator);
     try createFramebuffers(allocator);
     try createCommandPool(allocator);
+    try createVertexBuffer(allocator);
     try createCommandBuffers(allocator);
     try createSyncObjects();
+}
+
+fn findMemoryType(typeFilter: u32, properties: u32) !u32 {
+    var memProperties: c.VkPhysicalDeviceMemoryProperties = undefined;
+    c.vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+    var i: u32 = 0;
+    while (i < memProperties.memoryTypeCount) : (i += 1) {
+        if ((typeFilter & (u32(1) << @intCast(u5, i))) != 0 and ((memProperties.memoryTypes[i].propertyFlags & properties) == properties))
+            return i;
+    }
+
+    return error.NoSuitableMemory;
+}
+
+fn createVertexBuffer(allocator: *Allocator) !void {
+    const bufferInfo = c.VkBufferCreateInfo{
+        .sType = .VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .size = @sizeOf(@typeOf(vertexData)),
+        .usage = @enumToInt(c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT),
+        .sharingMode = .VK_SHARING_MODE_EXCLUSIVE,
+
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = null,
+        .flags = 0,
+        .pNext = null,
+    };
+
+    try checkSuccess(c.vkCreateBuffer(global_device, &bufferInfo, null, &vertexBuffer));
+
+    var memRequirements: c.VkMemoryRequirements = undefined;
+    c.vkGetBufferMemoryRequirements(global_device, vertexBuffer, &memRequirements);
+
+    const allocInfo = c.VkMemoryAllocateInfo{
+        .sType = .VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = memRequirements.size,
+        .memoryTypeIndex = try findMemoryType(
+            memRequirements.memoryTypeBits,
+            @enumToInt(c.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) | @enumToInt(c.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
+        ),
+
+        .pNext = null,
+    };
+
+    try checkSuccess(c.vkAllocateMemory(global_device, &allocInfo, null, &vertexBufferMemory));
+
+    try checkSuccess(c.vkBindBufferMemory(global_device, vertexBuffer, vertexBufferMemory, 0));
+
+    var data: ?*c_void = undefined;
+    try checkSuccess(c.vkMapMemory(global_device, vertexBufferMemory, 0, bufferInfo.size, 0, &data));
+    @memcpy(@ptrCast([*]u8, data), @ptrCast([*]const u8, &vertexData), bufferInfo.size);
+
+    c.vkUnmapMemory(global_device, vertexBufferMemory);
 }
 
 fn createCommandBuffers(allocator: *Allocator) !void {
@@ -189,7 +294,12 @@ fn createCommandBuffers(allocator: *Allocator) !void {
         c.vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, c.VK_SUBPASS_CONTENTS_INLINE);
         {
             c.vkCmdBindPipeline(commandBuffers[i], c.VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-            c.vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+
+            const vertexBuffers = [_]c.VkBuffer{vertexBuffer};
+            const offsets = [_]c.VkDeviceSize{0};
+            c.vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &vertexBuffers, &offsets);
+
+            c.vkCmdDraw(commandBuffers[i], vertexData.len, 1, 0, 0);
         }
         c.vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -307,11 +417,11 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
 
     const vertexInputInfo = c.VkPipelineVertexInputStateCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 0,
-        .vertexAttributeDescriptionCount = 0,
+        .vertexBindingDescriptionCount = Vertex.BindingDescriptions.len,
+        .vertexAttributeDescriptionCount = Vertex.AttributeDescriptions.len,
 
-        .pVertexBindingDescriptions = null,
-        .pVertexAttributeDescriptions = null,
+        .pVertexBindingDescriptions = &Vertex.BindingDescriptions,
+        .pVertexAttributeDescriptions = &Vertex.AttributeDescriptions,
         .pNext = null,
         .flags = 0,
     };
