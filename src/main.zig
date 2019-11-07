@@ -5,6 +5,13 @@ const Allocator = mem.Allocator;
 const c = @import("vulkan.zig");
 const maxInt = std.math.maxInt;
 
+const geo = @import("geo/geo.zig");
+const Vec2 = geo.Vec2;
+const Vec3 = geo.Vec3;
+const Vec4 = geo.Vec4;
+const colors = @import("color.zig");
+const Color3f = colors.Color3f;
+
 const WIDTH = 800;
 const HEIGHT = 600;
 
@@ -15,12 +22,12 @@ const validationLayers = [_][*]const u8{c"VK_LAYER_LUNARG_standard_validation"};
 const deviceExtensions = [_][*]const u8{c.VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 const vertexData = [_]Vertex{
-    Vertex.init(0.5, -0.5, 1, 0.5, 0),
-    Vertex.init(0.5, 0.5, 0, 1, 1),
-    Vertex.init(-0.5, 0.5, 0.5, 0, 1),
-    Vertex.init(-0.5, 0.5, 0.5, 0, 1),
-    Vertex.init(-0.5, -0.5, 0, 1, 1),
-    Vertex.init(0.5, -0.5, 1, 0.5, 0),
+    Vertex.init(Vec2.init(0.5, -0.5), Color3f.init(1, 0.5, 0)),
+    Vertex.init(Vec2.init(0.5, 0.5), Color3f.init(0, 1, 1)),
+    Vertex.init(Vec2.init(-0.5, 0.5), Color3f.init(0.5, 0, 1)),
+    Vertex.init(Vec2.init(-0.5, 0.5), Color3f.init(0.5, 0, 1)),
+    Vertex.init(Vec2.init(-0.5, -0.5), Color3f.init(0, 1, 1)),
+    Vertex.init(Vec2.init(0.5, -0.5), Color3f.init(1, 0.5, 0)),
 };
 
 var currentFrame: usize = 0;
@@ -50,19 +57,13 @@ var renderFinishedSemaphores: [MAX_FRAMES_IN_FLIGHT]c.VkSemaphore = undefined;
 var inFlightFences: [MAX_FRAMES_IN_FLIGHT]c.VkFence = undefined;
 
 const Vertex = extern struct {
-    px: f32,
-    py: f32,
-    cr: f32,
-    cg: f32,
-    cb: f32,
+    pos: Vec2,
+    color: Color3f,
 
-    pub fn init(px: f32, py: f32, cr: f32, cg: f32, cb: f32) Vertex {
+    pub fn init(pos: Vec2, color: Color3f) Vertex {
         return Vertex{
-            .px = px,
-            .py = py,
-            .cr = cr,
-            .cg = cg,
-            .cb = cb,
+            .pos = pos,
+            .color = color,
         };
     }
 
@@ -79,13 +80,13 @@ const Vertex = extern struct {
             .binding = 0,
             .location = 0,
             .format = .VK_FORMAT_R32G32_SFLOAT,
-            .offset = @byteOffsetOf(Vertex, "px"),
+            .offset = @byteOffsetOf(Vertex, "pos"),
         },
         c.VkVertexInputAttributeDescription{
             .binding = 0,
             .location = 1,
             .format = .VK_FORMAT_R32G32B32_SFLOAT,
-            .offset = @byteOffsetOf(Vertex, "cr"),
+            .offset = @byteOffsetOf(Vertex, "color"),
         },
     };
 };
