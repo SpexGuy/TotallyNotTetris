@@ -17,7 +17,7 @@ pub const Vec2 = extern struct {
     pub const Y = init(0, 1);
 
     /// Creates a vector with the given values
-    pub inline fn init(x: f32, y: f32) Vec2 {
+    pub fn init(x: f32, y: f32) Vec2 {
         return Vec2{
             .x = x,
             .y = y,
@@ -25,7 +25,7 @@ pub const Vec2 = extern struct {
     }
 
     /// Creates a vector with each component set to the given value
-    pub inline fn splat(val: f32) Vec2 {
+    pub fn splat(val: f32) Vec2 {
         return Vec2{
             .x = val,
             .y = val,
@@ -33,7 +33,7 @@ pub const Vec2 = extern struct {
     }
 
     /// Adds the like components of the inputs
-    pub inline fn add(self: Vec2, other: Vec2) Vec2 {
+    pub fn add(self: Vec2, other: Vec2) Vec2 {
         return Vec2{
             .x = self.x + other.x,
             .y = self.y + other.y,
@@ -41,7 +41,7 @@ pub const Vec2 = extern struct {
     }
 
     /// Subtracts the like components of the inputs
-    pub inline fn sub(self: Vec2, other: Vec2) Vec2 {
+    pub fn sub(self: Vec2, other: Vec2) Vec2 {
         return Vec2{
             .x = self.x - other.x,
             .y = self.y - other.y,
@@ -50,12 +50,12 @@ pub const Vec2 = extern struct {
 
     /// Returns the vector from self to other.
     /// Equivalent to other.sub(self);.
-    pub inline fn diff(self: Vec2, other: Vec2) Vec2 {
+    pub fn diff(self: Vec2, other: Vec2) Vec2 {
         return other.sub(self);
     }
 
     /// Negates each component
-    pub inline fn negate(self: Vec2) Vec2 {
+    pub fn negate(self: Vec2) Vec2 {
         return Vec2{
             .x = -self.x,
             .y = -self.y,
@@ -63,7 +63,7 @@ pub const Vec2 = extern struct {
     }
 
     /// Multiply each component by a constant
-    pub inline fn scale(self: Vec2, multiple: f32) Vec2 {
+    pub fn scale(self: Vec2, multiple: f32) Vec2 {
         return Vec2{
             .x = self.x * multiple,
             .y = self.y * multiple,
@@ -71,7 +71,7 @@ pub const Vec2 = extern struct {
     }
 
     /// Component-wise multiply two vectors
-    pub inline fn mul(self: Vec2, mult: Vec2) Vec2 {
+    pub fn mul(self: Vec2, mult: Vec2) Vec2 {
         return Vec2{
             .x = self.x * mult.x,
             .y = self.y * mult.y,
@@ -80,20 +80,20 @@ pub const Vec2 = extern struct {
 
     /// Scale the vector to length 1.
     /// If the vector is too close to zero, this returns error.Singular.
-    pub inline fn normalize(self: Vec2) !Vec2 {
+    pub fn normalize(self: Vec2) !Vec2 {
         const mult = 1.0 / self.len();
         if (!math.isFinite(mult)) return error.Singular;
         return self.scale(mult);
     }
 
     /// Adds the x and y components of the vector
-    pub inline fn sum(self: Vec2) f32 {
+    pub fn sum(self: Vec2) f32 {
         return self.x + self.y;
     }
 
     /// Interpolates alpha percent between self and target.
     /// If alpha is < 0 or > 1, will extrapolate.
-    pub inline fn lerp(self: Vec2, target: Vec2, alpha: f32) Vec2 {
+    pub fn lerp(self: Vec2, target: Vec2, alpha: f32) Vec2 {
         return Vec2{
             .x = self.x + (target.x - self.x) * alpha,
             .y = self.y + (target.y - self.y) * alpha,
@@ -102,29 +102,29 @@ pub const Vec2 = extern struct {
 
     /// Returns the square of the length of the vector.
     /// Slightly faster than calculating the length.
-    pub inline fn lenSquared(self: Vec2) f32 {
+    pub fn lenSquared(self: Vec2) f32 {
         return self.x * self.x + self.y * self.y;
     }
 
     /// Computes the length of the vector
-    pub inline fn len(self: Vec2) f32 {
+    pub fn len(self: Vec2) f32 {
         return math.sqrt(self.lenSquared());
     }
 
     /// Computes the dot product of two vectors
-    pub inline fn dot(self: Vec2, other: Vec2) f32 {
+    pub fn dot(self: Vec2, other: Vec2) f32 {
         return self.x * other.x + self.y * other.y;
     }
 
     /// Computes the wedge product of two vectors.
     /// (A.K.A. the 2D cross product)
-    pub inline fn wedge(self: Vec2, other: Vec2) f32 {
+    pub fn wedge(self: Vec2, other: Vec2) f32 {
         return self.x * other.y - self.y * other.x;
     }
 
     /// Computes the projection of self along other.
     /// If other is near zero, returns error.Singular.
-    pub inline fn along(self: Vec2, other: Vec2) !Vec2 {
+    pub fn along(self: Vec2, other: Vec2) !Vec2 {
         const mult = self.dot(other) / other.lenSquared();
         if (!math.isFinite(mult)) return error.Singular;
         return other.scale(mult);
@@ -164,7 +164,7 @@ pub const Vec2 = extern struct {
     /// Computes the vector rotated 90 degrees counterclockwise.
     /// This is the vector pointing out of the left side of this vector,
     /// with the same length as this vector.
-    pub inline fn left(self: Vec2) Vec2 {
+    pub fn left(self: Vec2) Vec2 {
         return Vec2{
             .x = -self.y,
             .y = self.x,
@@ -174,7 +174,7 @@ pub const Vec2 = extern struct {
     /// Computes the vector rotated 90 degrees clockwise.
     /// This is the vector pointing out of the right side of this vector,
     /// with the same length as this vector.
-    pub inline fn right(self: Vec2) Vec2 {
+    pub fn right(self: Vec2) Vec2 {
         return Vec2{
             .x = self.y,
             .y = -self.x,
@@ -182,37 +182,37 @@ pub const Vec2 = extern struct {
     }
 
     /// Returns a pointer to the vector's data as a fixed-size buffer.
-    pub inline fn asBuf(self: *Vec2) *[2]f32 {
+    pub fn asBuf(self: *Vec2) *[2]f32 {
         return @ptrCast(*[2]f32, self);
     }
 
     /// Returns a pointer to the vector's data as a const fixed-size buffer.
-    pub inline fn asConstBuf(self: *const Vec2) *const [2]f32 {
+    pub fn asConstBuf(self: *const Vec2) *const [2]f32 {
         return @ptrCast(*const [2]f32, self);
     }
 
     /// Returns a slice of the vector's data.
-    pub inline fn asSlice(self: *Vec2) []f32 {
+    pub fn asSlice(self: *Vec2) []f32 {
         return self.asBuf()[0..];
     }
 
     /// Returns a const slice of the vector's data.
-    pub inline fn asConstSlice(self: *const Vec2) []const f32 {
+    pub fn asConstSlice(self: *const Vec2) []const f32 {
         return self.asConstBuf()[0..];
     }
 
     /// Appends a z value to make a Vec3
-    pub inline fn toVec3(self: Vec2, z: f32) Vec3 {
+    pub fn toVec3(self: Vec2, z: f32) Vec3 {
         return Vec3.init(self.x, self.y, z);
     }
 
     /// Appends z and w values to make a Vec4
-    pub inline fn toVec4(self: Vec2, z: f32, w: f32) Vec4 {
+    pub fn toVec4(self: Vec2, z: f32, w: f32) Vec4 {
         return Vec4.init(self.x, self.y, z, w);
     }
 
     /// Concatenates two Vec2s into a Vec4
-    pub inline fn pack4(xy: Vec2, zw: Vec2) Vec4 {
+    pub fn pack4(xy: Vec2, zw: Vec2) Vec4 {
         return Vec4.init(xy.x, xy.y, zw.x, zw.y);
     }
 
@@ -250,7 +250,7 @@ pub const Vec3 = extern struct {
     pub const Z = init(0, 0, 1);
 
     /// Creates a vector with the given values
-    pub inline fn init(x: f32, y: f32, z: f32) Vec3 {
+    pub fn init(x: f32, y: f32, z: f32) Vec3 {
         return Vec3{
             .x = x,
             .y = y,
@@ -259,7 +259,7 @@ pub const Vec3 = extern struct {
     }
 
     /// Creates a vector with each component set to the given value
-    pub inline fn splat(val: f32) Vec3 {
+    pub fn splat(val: f32) Vec3 {
         return Vec3{
             .x = val,
             .y = val,
@@ -268,7 +268,7 @@ pub const Vec3 = extern struct {
     }
 
     /// Adds the like components of the inputs
-    pub inline fn add(self: Vec3, other: Vec3) Vec3 {
+    pub fn add(self: Vec3, other: Vec3) Vec3 {
         return Vec3{
             .x = self.x + other.x,
             .y = self.y + other.y,
@@ -277,7 +277,7 @@ pub const Vec3 = extern struct {
     }
 
     /// Subtracts the like components of the inputs
-    pub inline fn sub(self: Vec3, other: Vec3) Vec3 {
+    pub fn sub(self: Vec3, other: Vec3) Vec3 {
         return Vec3{
             .x = self.x - other.x,
             .y = self.y - other.y,
@@ -287,12 +287,12 @@ pub const Vec3 = extern struct {
 
     /// Returns the vector from self to other.
     /// Equivalent to other.sub(self);.
-    pub inline fn diff(self: Vec3, other: Vec3) Vec3 {
+    pub fn diff(self: Vec3, other: Vec3) Vec3 {
         return other.sub(self);
     }
 
     /// Negates each component
-    pub inline fn negate(self: Vec3) Vec3 {
+    pub fn negate(self: Vec3) Vec3 {
         return Vec3{
             .x = -self.x,
             .y = -self.y,
@@ -301,7 +301,7 @@ pub const Vec3 = extern struct {
     }
 
     /// Multiply each component by a constant
-    pub inline fn scale(self: Vec3, multiple: f32) Vec3 {
+    pub fn scale(self: Vec3, multiple: f32) Vec3 {
         return Vec3{
             .x = self.x * multiple,
             .y = self.y * multiple,
@@ -310,7 +310,7 @@ pub const Vec3 = extern struct {
     }
 
     /// Component-wise multiply two vectors
-    pub inline fn mul(self: Vec3, mult: Vec3) Vec3 {
+    pub fn mul(self: Vec3, mult: Vec3) Vec3 {
         return Vec3{
             .x = self.x * mult.x,
             .y = self.y * mult.y,
@@ -320,20 +320,20 @@ pub const Vec3 = extern struct {
 
     /// Scale the vector to length 1.
     /// If the vector is too close to zero, this returns error.Singular.
-    pub inline fn normalize(self: Vec3) !Vec3 {
+    pub fn normalize(self: Vec3) !Vec3 {
         const mult = 1.0 / self.len();
         if (!math.isFinite(mult)) return error.Singular;
         return self.scale(mult);
     }
 
     /// Adds the x, y, and z components of the vector
-    pub inline fn sum(self: Vec3) f32 {
+    pub fn sum(self: Vec3) f32 {
         return self.x + self.y + self.z;
     }
 
     /// Interpolates alpha percent between self and target.
     /// If alpha is < 0 or > 1, will extrapolate.
-    pub inline fn lerp(self: Vec3, target: Vec3, alpha: f32) Vec3 {
+    pub fn lerp(self: Vec3, target: Vec3, alpha: f32) Vec3 {
         return Vec3{
             .x = self.x + (target.x - self.x) * alpha,
             .y = self.y + (target.y - self.y) * alpha,
@@ -343,22 +343,22 @@ pub const Vec3 = extern struct {
 
     /// Returns the square of the length of the vector.
     /// Slightly faster than calculating the length.
-    pub inline fn lenSquared(self: Vec3) f32 {
+    pub fn lenSquared(self: Vec3) f32 {
         return self.x * self.x + self.y * self.y + self.z * self.z;
     }
 
     /// Computes the length of the vector
-    pub inline fn len(self: Vec3) f32 {
+    pub fn len(self: Vec3) f32 {
         return math.sqrt(self.lenSquared());
     }
 
     /// Computes the dot product of two vectors
-    pub inline fn dot(self: Vec3, other: Vec3) f32 {
+    pub fn dot(self: Vec3, other: Vec3) f32 {
         return self.x * other.x + self.y * other.y + self.z * other.z;
     }
 
     /// Computes the wedge product of two vectors
-    pub inline fn wedge(self: Vec3, other: Vec3) BiVec3 {
+    pub fn wedge(self: Vec3, other: Vec3) BiVec3 {
         return BiVec3{
             .xy = self.x * other.y - self.y * other.x,
             .yz = self.y * other.z - self.z * other.y,
@@ -377,7 +377,7 @@ pub const Vec3 = extern struct {
 
     /// Computes the projection of self along other.
     /// If other is near zero, returns error.Singular.
-    pub inline fn along(self: Vec3, other: Vec3) !Vec3 {
+    pub fn along(self: Vec3, other: Vec3) !Vec3 {
         const mult = self.dot(other) / other.lenSquared();
         if (!math.isFinite(mult)) return error.Singular;
         return if (math.isFinite(mult)) other.scale(mult) else Zero;
@@ -390,7 +390,7 @@ pub const Vec3 = extern struct {
     }
 
     /// Returns a vector that is orthogonal to this vector
-    pub inline fn orthogonal(v: Vec3) Vec3 {
+    pub fn orthogonal(v: Vec3) Vec3 {
         const x = math.fabs(v.x);
         const y = math.fabs(v.y);
         const z = math.fabs(v.z);
@@ -400,44 +400,44 @@ pub const Vec3 = extern struct {
     }
 
     /// Returns a pointer to the vector's data as a fixed-size buffer.
-    pub inline fn asBuf(self: *Vec3) *[3]f32 {
+    pub fn asBuf(self: *Vec3) *[3]f32 {
         return @ptrCast(*[3]f32, self);
     }
 
     /// Returns a pointer to the vector's data as a const fixed-size buffer.
-    pub inline fn asConstBuf(self: *const Vec3) *const [3]f32 {
+    pub fn asConstBuf(self: *const Vec3) *const [3]f32 {
         return @ptrCast(*const [3]f32, self);
     }
 
     /// Returns a slice of the vector's data.
-    pub inline fn asSlice(self: *Vec3) []f32 {
+    pub fn asSlice(self: *Vec3) []f32 {
         return self.asBuf()[0..];
     }
 
     /// Returns a const slice of the vector's data.
-    pub inline fn asConstSlice(self: *const Vec3) []const f32 {
+    pub fn asConstSlice(self: *const Vec3) []const f32 {
         return self.asConstBuf()[0..];
     }
 
     /// Returns a Vec2 representation of this vector
     /// Modifications to the returned Vec2 will also
     /// modify this vector, and vice versa.
-    pub inline fn asVec2(self: *Vec3) *Vec2 {
+    pub fn asVec2(self: *Vec3) *Vec2 {
         return @ptrCast(*Vec2, self);
     }
 
     /// Returns a vec2 of the x and y components of this vector
-    pub inline fn toVec2(self: Vec3) Vec2 {
+    pub fn toVec2(self: Vec3) Vec2 {
         return Vec2.init(self.x, self.y);
     }
 
     /// Appends a w value to make a vec4
-    pub inline fn toVec4(self: Vec3, w: f32) Vec4 {
+    pub fn toVec4(self: Vec3, w: f32) Vec4 {
         return Vec4.init(self.x, self.y, self.z, w);
     }
 
     /// Provides a view over this vector as a BiVec3
-    pub inline fn asBiVec3(self: *Vec3) *BiVec3 {
+    pub fn asBiVec3(self: *Vec3) *BiVec3 {
         return @ptrCast(*BiVec3, self);
     }
 
@@ -490,7 +490,7 @@ pub const Vec4 = extern struct {
     pub const W = init(0, 0, 0, 1);
 
     /// Creates a vector with the given values
-    pub inline fn init(x: f32, y: f32, z: f32, w: f32) Vec4 {
+    pub fn init(x: f32, y: f32, z: f32, w: f32) Vec4 {
         return Vec4{
             .x = x,
             .y = y,
@@ -500,7 +500,7 @@ pub const Vec4 = extern struct {
     }
 
     /// Creates a vector with each component set to the given value
-    pub inline fn splat(val: f32) Vec4 {
+    pub fn splat(val: f32) Vec4 {
         return Vec4{
             .x = val,
             .y = val,
@@ -510,7 +510,7 @@ pub const Vec4 = extern struct {
     }
 
     /// Adds the like components of the inputs
-    pub inline fn add(self: Vec4, other: Vec4) Vec4 {
+    pub fn add(self: Vec4, other: Vec4) Vec4 {
         return Vec4{
             .x = self.x + other.x,
             .y = self.y + other.y,
@@ -520,7 +520,7 @@ pub const Vec4 = extern struct {
     }
 
     /// Subtracts the like components of the inputs
-    pub inline fn sub(self: Vec4, other: Vec4) Vec4 {
+    pub fn sub(self: Vec4, other: Vec4) Vec4 {
         return Vec4{
             .x = self.x - other.x,
             .y = self.y - other.y,
@@ -531,12 +531,12 @@ pub const Vec4 = extern struct {
 
     /// Returns the vector from self to other.
     /// Equivalent to other.sub(self);.
-    pub inline fn diff(self: Vec4, other: Vec4) Vec4 {
+    pub fn diff(self: Vec4, other: Vec4) Vec4 {
         return other.sub(self);
     }
 
     /// Negates each component
-    pub inline fn negate(self: Vec4) Vec4 {
+    pub fn negate(self: Vec4) Vec4 {
         return Vec4{
             .x = -self.x,
             .y = -self.y,
@@ -546,7 +546,7 @@ pub const Vec4 = extern struct {
     }
 
     /// Multiply each component by a constant
-    pub inline fn scale(self: Vec4, multiple: f32) Vec4 {
+    pub fn scale(self: Vec4, multiple: f32) Vec4 {
         return Vec4{
             .x = self.x * multiple,
             .y = self.y * multiple,
@@ -556,7 +556,7 @@ pub const Vec4 = extern struct {
     }
 
     /// Component-wise multiply two vectors
-    pub inline fn mul(self: Vec4, mult: Vec4) Vec4 {
+    pub fn mul(self: Vec4, mult: Vec4) Vec4 {
         return Vec4{
             .x = self.x * mult.x,
             .y = self.y * mult.y,
@@ -567,7 +567,7 @@ pub const Vec4 = extern struct {
 
     /// Scale the vector to length 1.
     /// If the vector is too close to zero, this returns error.Singular.
-    pub inline fn normalize(self: Vec4) !Vec4 {
+    pub fn normalize(self: Vec4) !Vec4 {
         const mult = 1.0 / self.len();
         if (!math.isFinite(mult)) return error.Singular;
         return self.scale(mult);
@@ -575,7 +575,7 @@ pub const Vec4 = extern struct {
 
     /// Divides by the w value to do perspective division.
     /// If the w value is too close to zero, returns error.Singular.
-    pub inline fn perspective(self: Vec4) !Vec3 {
+    pub fn perspective(self: Vec4) !Vec3 {
         const mult = 1.0 / self.w;
         if (!math.isFinite(mult)) return error.Singular;
         return self.toVec3().scale(mult);
@@ -583,20 +583,20 @@ pub const Vec4 = extern struct {
 
     /// Divides by the w value to do perspective division.
     /// If the w value is too close to zero, returns error.Singular.
-    pub inline fn perspective4(self: Vec4) !Vec4 {
+    pub fn perspective4(self: Vec4) !Vec4 {
         const mult = 1.0 / self.w;
         if (!math.isFinite(mult)) return error.Singular;
         return self.scale(mult);
     }
 
     /// Adds the x, y, and z components of the vector
-    pub inline fn sum(self: Vec4) f32 {
+    pub fn sum(self: Vec4) f32 {
         return self.x + self.y + self.z;
     }
 
     /// Interpolates alpha percent between self and target.
     /// If alpha is < 0 or > 1, will extrapolate.
-    pub inline fn lerp(self: Vec4, target: Vec4, alpha: f32) Vec4 {
+    pub fn lerp(self: Vec4, target: Vec4, alpha: f32) Vec4 {
         return Vec4{
             .x = self.x + (target.x - self.x) * alpha,
             .y = self.y + (target.y - self.y) * alpha,
@@ -607,23 +607,23 @@ pub const Vec4 = extern struct {
 
     /// Returns the square of the length of the vector.
     /// Slightly faster than calculating the length.
-    pub inline fn lenSquared(self: Vec4) f32 {
+    pub fn lenSquared(self: Vec4) f32 {
         return self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w;
     }
 
     /// Computes the length of the vector
-    pub inline fn len(self: Vec4) f32 {
+    pub fn len(self: Vec4) f32 {
         return math.sqrt(self.lenSquared());
     }
 
     /// Computes the dot product of two vectors
-    pub inline fn dot(self: Vec4, other: Vec4) f32 {
+    pub fn dot(self: Vec4, other: Vec4) f32 {
         return self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w;
     }
 
     /// Computes the projection of self along other.
     /// If other is too close to zero, returns error.Singular.
-    pub inline fn along(self: Vec4, other: Vec4) !Vec4 {
+    pub fn along(self: Vec4, other: Vec4) !Vec4 {
         const mult = self.dot(other) / other.lenSquared();
         if (!math.isFinite(mult)) return error.Singular;
         return other.scale(mult);
@@ -646,36 +646,36 @@ pub const Vec4 = extern struct {
     }
 
     /// Returns a slice of the vector's data.
-    pub inline fn asSlice(self: *Vec4) []f32 {
+    pub fn asSlice(self: *Vec4) []f32 {
         return self.asBuf()[0..];
     }
 
     /// Returns a const slice of the vector's data.
-    pub inline fn asConstSlice(self: *const Vec4) []const f32 {
+    pub fn asConstSlice(self: *const Vec4) []const f32 {
         return self.asConstBuf()[0..];
     }
 
     /// Returns a Vec2 representation of this vector
     /// Modifications to the returned Vec2 will also
     /// modify this vector, and vice versa.
-    pub inline fn asVec2(self: *Vec4) *Vec2 {
+    pub fn asVec2(self: *Vec4) *Vec2 {
         return @ptrCast(*Vec2, self);
     }
 
     /// Returns a Vec3 representation of this vector
     /// Modifications to the returned Vec2 will also
     /// modify this vector, and vice versa.
-    pub inline fn asVec3(self: *Vec4) *Vec3 {
+    pub fn asVec3(self: *Vec4) *Vec3 {
         return @ptrCast(*Vec3, self);
     }
 
     /// Returns a vec2 of the x and y components of this vector
-    pub inline fn toVec2(self: Vec4) Vec2 {
+    pub fn toVec2(self: Vec4) Vec2 {
         return Vec2.init(self.x, self.y);
     }
 
     /// Returns a vec3 of the xyz components of this vector
-    pub inline fn toVec3(self: Vec4) Vec3 {
+    pub fn toVec3(self: Vec4) Vec3 {
         return Vec3.init(self.x, self.y, self.z);
     }
 
@@ -722,7 +722,7 @@ pub const BiVec3 = extern struct {
     pub const XY = init(0, 0, 1);
 
     /// Creates a BiVec3 with the given components
-    pub inline fn init(yz: f32, zx: f32, xy: f32) BiVec3 {
+    pub fn init(yz: f32, zx: f32, xy: f32) BiVec3 {
         return BiVec3{
             .yz = yz,
             .zx = zx,
@@ -731,7 +731,7 @@ pub const BiVec3 = extern struct {
     }
 
     /// Add two bivectors
-    pub inline fn add(self: BiVec3, other: BiVec3) BiVec3 {
+    pub fn add(self: BiVec3, other: BiVec3) BiVec3 {
         return BiVec3{
             .yz = self.yz + other.yz,
             .zx = self.zx + other.zx,
@@ -751,13 +751,13 @@ pub const BiVec3 = extern struct {
 
     /// Dots with another bivector and returns a scalar.
     /// Note that this is NOT the same as a vector dot product.
-    pub inline fn dot(self: BiVec3, other: BiVec3) f32 {
+    pub fn dot(self: BiVec3, other: BiVec3) f32 {
         return -(self.yz * other.yz) - (self.zx * other.zx) - (self.xy * other.xy);
     }
 
     /// Wedges with another bivector and returns a bivector.
     /// Note that this is NOT the same as a vector wedge/cross product.
-    pub inline fn wedge(self: BiVec3, other: BiVec3) BiVec3 {
+    pub fn wedge(self: BiVec3, other: BiVec3) BiVec3 {
         return BiVec3{
             .yz = self.xy * other.zx - self.zx * other.xy,
             .zx = self.yz * other.xy - self.xy * other.yz,
@@ -768,20 +768,20 @@ pub const BiVec3 = extern struct {
     /// Wedges with a vector and returns a trivector.
     /// This value is equivalent to the scalar triple product.
     /// Note that this is NOT the same as a vector wedge/cross product.
-    pub inline fn wedgeVec(self: BiVec3, other: Vec3) f32 {
+    pub fn wedgeVec(self: BiVec3, other: Vec3) f32 {
         return self.yz * other.x + self.zx * other.y + self.xy * other.z;
     }
 
     /// Dots with a vector and returns a vector.
     /// This value is equivalent to the vector triple product.
     /// Note that this is NOT the same as a vector dot product.
-    pub inline fn dotVec(self: BiVec3, other: Vec3) Vec3 {
+    pub fn dotVec(self: BiVec3, other: Vec3) Vec3 {
         return @bitCast(Vec3, self).cross(other);
     }
 
     /// Returns the vec projected onto this plane.
     /// If this plane is near zero, returns error.Singular.
-    pub inline fn project(plane: BiVec3, vec: Vec3) !Vec3 {
+    pub fn project(plane: BiVec3, vec: Vec3) !Vec3 {
         return try vec.across(@bitCast(Vec3, plane));
     }
 
@@ -801,34 +801,34 @@ pub const BiVec3 = extern struct {
     }
 
     /// Returns a pointer to the vector's data as a fixed-size buffer.
-    pub inline fn asBuf(self: *Vec4) *[3]f32 {
+    pub fn asBuf(self: *Vec4) *[3]f32 {
         return @ptrCast(*[3]f32, self);
     }
 
     /// Returns a pointer to the vector's data as a const fixed-size buffer.
-    pub inline fn asConstBuf(self: *const Vec4) *const [3]f32 {
+    pub fn asConstBuf(self: *const Vec4) *const [3]f32 {
         return @ptrCast(*const [3]f32, self);
     }
 
     /// Returns a slice of the vector's data.
-    pub inline fn asSlice(self: *Vec4) []f32 {
+    pub fn asSlice(self: *Vec4) []f32 {
         return self.asBuf()[0..];
     }
 
     /// Returns a const slice of the vector's data.
-    pub inline fn asConstSlice(self: *const Vec4) []const f32 {
+    pub fn asConstSlice(self: *const Vec4) []const f32 {
         return self.asConstBuf()[0..];
     }
 
     /// Provide a Vec3 view over this BiVector.
     /// x maps to yz, y maps to zx, z maps to xy.
-    pub inline fn asVec3(self: *BiVec3) *Vec3 {
+    pub fn asVec3(self: *BiVec3) *Vec3 {
         return @ptrCast(*Vec3, self);
     }
 
     /// Copies into a Vec3.
     /// x maps to yz, y maps to zx, z maps to xy.
-    pub inline fn toVec3(self: BiVec3) Vec3 {
+    pub fn toVec3(self: BiVec3) Vec3 {
         return @bitCast(Vec3, self);
     }
 

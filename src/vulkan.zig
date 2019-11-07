@@ -1956,8 +1956,8 @@ pub const VK_DESCRIPTOR_TYPE_STORAGE_BUFFER = enum_VkDescriptorType.VK_DESCRIPTO
 pub const VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC = enum_VkDescriptorType.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 pub const VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC = enum_VkDescriptorType.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
 pub const VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT = enum_VkDescriptorType.VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-pub const VK_DESCRIPTOR_TYPE_BEGIN_RANGE = enum_VkDescriptorType.VK_DESCRIPTOR_TYPE_BEGIN_RANGE;
-pub const VK_DESCRIPTOR_TYPE_END_RANGE = enum_VkDescriptorType.VK_DESCRIPTOR_TYPE_END_RANGE;
+pub const VK_DESCRIPTOR_TYPE_BEGIN_RANGE = 0;
+pub const VK_DESCRIPTOR_TYPE_END_RANGE = 10;
 pub const VK_DESCRIPTOR_TYPE_RANGE_SIZE = enum_VkDescriptorType.VK_DESCRIPTOR_TYPE_RANGE_SIZE;
 pub const VK_DESCRIPTOR_TYPE_MAX_ENUM = enum_VkDescriptorType.VK_DESCRIPTOR_TYPE_MAX_ENUM;
 pub const enum_VkDescriptorType = extern enum {
@@ -1972,8 +1972,6 @@ pub const enum_VkDescriptorType = extern enum {
     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC = 8,
     VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC = 9,
     VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT = 10,
-    VK_DESCRIPTOR_TYPE_BEGIN_RANGE = 0,
-    VK_DESCRIPTOR_TYPE_END_RANGE = 10,
     VK_DESCRIPTOR_TYPE_RANGE_SIZE = 11,
     VK_DESCRIPTOR_TYPE_MAX_ENUM = 2147483647,
 };
@@ -3246,7 +3244,7 @@ pub const struct_VkPipelineShaderStageCreateInfo = extern struct {
     stage: VkShaderStageFlagBits,
     module: VkShaderModule,
     pName: ?[*]const u8,
-    pSpecializationInfo: ?[*]const VkSpecializationInfo,
+    pSpecializationInfo: ?[*]const VkSpecializationInfo, // @todo: should this be single pointer?
 };
 pub const VkPipelineShaderStageCreateInfo = struct_VkPipelineShaderStageCreateInfo;
 pub const struct_VkVertexInputBindingDescription = extern struct {
@@ -3412,7 +3410,7 @@ pub const struct_VkGraphicsPipelineCreateInfo = extern struct {
     pStages: ?[*]const VkPipelineShaderStageCreateInfo,
     pVertexInputState: *const VkPipelineVertexInputStateCreateInfo,
     pInputAssemblyState: *const VkPipelineInputAssemblyStateCreateInfo,
-    pTessellationState: ?[*]const VkPipelineTessellationStateCreateInfo,
+    pTessellationState: ?*const VkPipelineTessellationStateCreateInfo,
     pViewportState: *const VkPipelineViewportStateCreateInfo,
     pRasterizationState: *const VkPipelineRasterizationStateCreateInfo,
     pMultisampleState: *const VkPipelineMultisampleStateCreateInfo,
@@ -3863,12 +3861,12 @@ pub const PFN_vkCreatePipelineLayout = ?extern fn (VkDevice, ?[*]const VkPipelin
 pub const PFN_vkDestroyPipelineLayout = ?extern fn (VkDevice, VkPipelineLayout, ?[*]const VkAllocationCallbacks) void;
 pub const PFN_vkCreateSampler = ?extern fn (VkDevice, ?[*]const VkSamplerCreateInfo, ?[*]const VkAllocationCallbacks, ?[*]VkSampler) VkResult;
 pub const PFN_vkDestroySampler = ?extern fn (VkDevice, VkSampler, ?[*]const VkAllocationCallbacks) void;
-pub const PFN_vkCreateDescriptorSetLayout = ?extern fn (VkDevice, ?[*]const VkDescriptorSetLayoutCreateInfo, ?[*]const VkAllocationCallbacks, ?[*]VkDescriptorSetLayout) VkResult;
+pub const PFN_vkCreateDescriptorSetLayout = ?extern fn (VkDevice, ?*const VkDescriptorSetLayoutCreateInfo, ?*const VkAllocationCallbacks, ?*VkDescriptorSetLayout) VkResult;
 pub const PFN_vkDestroyDescriptorSetLayout = ?extern fn (VkDevice, VkDescriptorSetLayout, ?[*]const VkAllocationCallbacks) void;
-pub const PFN_vkCreateDescriptorPool = ?extern fn (VkDevice, ?[*]const VkDescriptorPoolCreateInfo, ?[*]const VkAllocationCallbacks, ?[*]VkDescriptorPool) VkResult;
+pub const PFN_vkCreateDescriptorPool = ?extern fn (VkDevice, ?*const VkDescriptorPoolCreateInfo, ?*const VkAllocationCallbacks, ?*VkDescriptorPool) VkResult;
 pub const PFN_vkDestroyDescriptorPool = ?extern fn (VkDevice, VkDescriptorPool, ?[*]const VkAllocationCallbacks) void;
 pub const PFN_vkResetDescriptorPool = ?extern fn (VkDevice, VkDescriptorPool, VkDescriptorPoolResetFlags) VkResult;
-pub const PFN_vkAllocateDescriptorSets = ?extern fn (VkDevice, ?[*]const VkDescriptorSetAllocateInfo, ?[*]VkDescriptorSet) VkResult;
+pub const PFN_vkAllocateDescriptorSets = ?extern fn (VkDevice, ?*const VkDescriptorSetAllocateInfo, ?[*]VkDescriptorSet) VkResult;
 pub const PFN_vkFreeDescriptorSets = ?extern fn (VkDevice, VkDescriptorPool, u32, ?[*]const VkDescriptorSet) VkResult;
 pub const PFN_vkUpdateDescriptorSets = ?extern fn (VkDevice, u32, ?[*]const VkWriteDescriptorSet, u32, ?[*]const VkCopyDescriptorSet) void;
 pub const PFN_vkCreateFramebuffer = ?extern fn (VkDevice, ?[*]const VkFramebufferCreateInfo, ?[*]const VkAllocationCallbacks, ?[*]VkFramebuffer) VkResult;
@@ -4009,12 +4007,12 @@ pub extern fn vkCreatePipelineLayout(device: VkDevice, pCreateInfo: *const VkPip
 pub extern fn vkDestroyPipelineLayout(device: VkDevice, pipelineLayout: VkPipelineLayout, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkCreateSampler(device: VkDevice, pCreateInfo: ?[*]const VkSamplerCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pSampler: ?[*]VkSampler) VkResult;
 pub extern fn vkDestroySampler(device: VkDevice, sampler: VkSampler, pAllocator: ?[*]const VkAllocationCallbacks) void;
-pub extern fn vkCreateDescriptorSetLayout(device: VkDevice, pCreateInfo: ?[*]const VkDescriptorSetLayoutCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pSetLayout: ?[*]VkDescriptorSetLayout) VkResult;
+pub extern fn vkCreateDescriptorSetLayout(device: VkDevice, pCreateInfo: ?*const VkDescriptorSetLayoutCreateInfo, pAllocator: ?*const VkAllocationCallbacks, pSetLayout: ?*VkDescriptorSetLayout) VkResult;
 pub extern fn vkDestroyDescriptorSetLayout(device: VkDevice, descriptorSetLayout: VkDescriptorSetLayout, pAllocator: ?[*]const VkAllocationCallbacks) void;
-pub extern fn vkCreateDescriptorPool(device: VkDevice, pCreateInfo: ?[*]const VkDescriptorPoolCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pDescriptorPool: ?[*]VkDescriptorPool) VkResult;
+pub extern fn vkCreateDescriptorPool(device: VkDevice, pCreateInfo: ?*const VkDescriptorPoolCreateInfo, pAllocator: ?*const VkAllocationCallbacks, pDescriptorPool: ?*VkDescriptorPool) VkResult;
 pub extern fn vkDestroyDescriptorPool(device: VkDevice, descriptorPool: VkDescriptorPool, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkResetDescriptorPool(device: VkDevice, descriptorPool: VkDescriptorPool, flags: VkDescriptorPoolResetFlags) VkResult;
-pub extern fn vkAllocateDescriptorSets(device: VkDevice, pAllocateInfo: ?[*]const VkDescriptorSetAllocateInfo, pDescriptorSets: ?[*]VkDescriptorSet) VkResult;
+pub extern fn vkAllocateDescriptorSets(device: VkDevice, pAllocateInfo: ?*const VkDescriptorSetAllocateInfo, pDescriptorSets: ?[*]VkDescriptorSet) VkResult;
 pub extern fn vkFreeDescriptorSets(device: VkDevice, descriptorPool: VkDescriptorPool, descriptorSetCount: u32, pDescriptorSets: ?[*]const VkDescriptorSet) VkResult;
 pub extern fn vkUpdateDescriptorSets(device: VkDevice, descriptorWriteCount: u32, pDescriptorWrites: ?[*]const VkWriteDescriptorSet, descriptorCopyCount: u32, pDescriptorCopies: ?[*]const VkCopyDescriptorSet) void;
 pub extern fn vkCreateFramebuffer(device: VkDevice, pCreateInfo: *const VkFramebufferCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pFramebuffer: *VkFramebuffer) VkResult;

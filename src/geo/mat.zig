@@ -923,6 +923,39 @@ pub const Generic = struct {
     }
 };
 
+pub fn symmetricOrtho(width: f32, height: f32, near: f32, far: f32) Mat4 {
+    return ortho(-width * 0.5, width * 0.5, height * 0.5, -height * 0.5, near, far);
+}
+
+pub fn ortho(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) Mat4 {
+    return Mat4{
+        .x = Vec4{
+            .x = 1 / (right - left),
+            .y = 0,
+            .z = 0,
+            .w = 0,
+        },
+        .y = Vec4{
+            .x = 0,
+            .y = 1 / (top - bottom),
+            .z = 0,
+            .w = 0,
+        },
+        .z = Vec4{
+            .x = 0,
+            .y = 0,
+            .z = 1 / (far - near),
+            .w = 0,
+        },
+        .w = Vec4{
+            .x = -(right + left) / (right - left),
+            .y = -(top + bottom) / (top - bottom),
+            .z = -(far + near) / (far - near) + 0.5,
+            .w = 1,
+        },
+    };
+}
+
 test "compile Mat3" {
     var a = Mat3.Identity;
     var b = a;

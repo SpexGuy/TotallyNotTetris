@@ -1,14 +1,27 @@
+// @todo: big cleanup things:
+// [ ] Replace [*] with * in all applicable vk bindings
+// [ ] Make all vulkan bitfield enums into integers
+// [x] Use structured types for buffer data
+// [ ] Set sType and pNext defaults for all vk structs
+
 const std = @import("std");
 const assert = std.debug.assert;
 const mem = std.mem;
 const Allocator = mem.Allocator;
+const math = std.math;
+const maxInt = math.maxInt;
+
 const c = @import("vulkan.zig");
-const maxInt = std.math.maxInt;
+
+const util = @import("util.zig");
 
 const geo = @import("geo/geo.zig");
 const Vec2 = geo.Vec2;
 const Vec3 = geo.Vec3;
 const Vec4 = geo.Vec4;
+const Rotor3 = geo.Rotor3;
+const Mat3 = geo.Mat3;
+const Mat4 = geo.Mat4;
 const colors = @import("color.zig");
 const Color3f = colors.Color3f;
 
@@ -44,6 +57,11 @@ var swapChainImageFormat: c.VkFormat = undefined;
 var swapChainExtent: c.VkExtent2D = undefined;
 var swapChainImageViews: []c.VkImageView = undefined;
 var renderPass: c.VkRenderPass = undefined;
+var descriptorSetLayouts: [1]c.VkDescriptorSetLayout = undefined;
+var descriptorPool: c.VkDescriptorPool = undefined;
+var descriptorSets: []c.VkDescriptorSet = undefined;
+var uniformBuffers: []c.VkBuffer = undefined;
+var uniformBuffersMemory: []c.VkDeviceMemory = undefined;
 var pipelineLayout: c.VkPipelineLayout = undefined;
 var graphicsPipeline: c.VkPipeline = undefined;
 var swapChainFramebuffers: []c.VkFramebuffer = undefined;
@@ -55,6 +73,15 @@ var vertexBufferMemory: c.VkDeviceMemory = undefined;
 var imageAvailableSemaphores: [MAX_FRAMES_IN_FLIGHT]c.VkSemaphore = undefined;
 var renderFinishedSemaphores: [MAX_FRAMES_IN_FLIGHT]c.VkSemaphore = undefined;
 var inFlightFences: [MAX_FRAMES_IN_FLIGHT]c.VkFence = undefined;
+
+var startupTimeMillis: u64 = undefined;
+
+fn currentTime() f32 {
+    // TODO: This is not monotonic.  It will fail on leap years or other
+    // cases where computer time stops or goes backwards.  It also can't
+    // handle extremely long run durations and has trouble with hibernation.
+    return @intToFloat(f32, std.time.milliTimestamp() - startupTimeMillis) * 0.001;
+}
 
 const Vertex = extern struct {
     pos: Vec2,
@@ -89,6 +116,12 @@ const Vertex = extern struct {
             .offset = @byteOffsetOf(Vertex, "color"),
         },
     };
+};
+
+const UniformBufferObject = extern struct {
+    model: Mat4,
+    view: Mat4,
+    proj: Mat4,
 };
 
 const QueueFamilyIndices = struct {
@@ -130,6 +163,8 @@ const SwapChainSupportDetails = struct {
 };
 
 pub fn main() !void {
+    startupTimeMillis = std.time.milliTimestamp();
+
     if (c.glfwInit() == 0) return error.GlfwInitFailed;
     defer c.glfwTerminate();
 
@@ -174,6 +209,18 @@ fn cleanup() void {
     }
 
     c.vkDestroySwapchainKHR(global_device, swapChain, null);
+
+    for (uniformBuffers) |buffer| {
+        c.vkDestroyBuffer(global_device, buffer, null);
+    }
+
+    for (uniformBuffersMemory) |uniformMem| {
+        c.vkFreeMemory(global_device, uniformMem, null);
+    }
+
+    c.vkDestroyDescriptorPool(global_device, descriptorPool, null);
+    c.vkDestroyDescriptorSetLayout(global_device, descriptorSetLayouts[0], null);
+
     c.vkDestroyBuffer(global_device, vertexBuffer, null);
     c.vkFreeMemory(global_device, vertexBufferMemory, null);
     c.vkDestroyDevice(global_device, null);
@@ -195,10 +242,14 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try createSwapChain(allocator);
     try createImageViews(allocator);
     try createRenderPass();
+    try createDescriptorSetLayout();
     try createGraphicsPipeline(allocator);
     try createFramebuffers(allocator);
     try createCommandPool(allocator);
     try createVertexBuffer(allocator);
+    try createUniformBuffers(allocator);
+    try createDescriptorPool();
+    try createDescriptorSets(allocator);
     try createCommandBuffers(allocator);
     try createSyncObjects();
 }
@@ -330,6 +381,84 @@ fn createVertexBuffer(allocator: *Allocator) !void {
     c.vkFreeMemory(global_device, stagingBufferMemory, null);
 }
 
+fn createUniformBuffers(allocator: *Allocator) !void {
+    const bufferSize = c.VkDeviceSize(@sizeOf(UniformBufferObject));
+
+    uniformBuffers = try allocator.alloc(c.VkBuffer, swapChainImages.len);
+    uniformBuffersMemory = try allocator.alloc(c.VkDeviceMemory, swapChainImages.len);
+
+    for (uniformBuffers) |*buffer, i| {
+        try createBuffer(
+            bufferSize,
+            @enumToInt(c.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
+            @enumToInt(c.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) | @enumToInt(c.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
+            buffer,
+            &uniformBuffersMemory[i],
+        );
+    }
+}
+
+fn createDescriptorPool() !void {
+    const poolSizes = [_]c.VkDescriptorPoolSize{c.VkDescriptorPoolSize{
+        .type = .VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = @intCast(u32, swapChainImages.len),
+    }};
+
+    const poolInfo = c.VkDescriptorPoolCreateInfo{
+        .sType = .VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .poolSizeCount = poolSizes.len,
+        .pPoolSizes = &poolSizes,
+        .maxSets = @intCast(u32, swapChainImages.len),
+        .pNext = null,
+        .flags = 0,
+    };
+
+    try checkSuccess(c.vkCreateDescriptorPool(global_device, &poolInfo, null, &descriptorPool));
+}
+
+fn createDescriptorSets(allocator: *Allocator) !void {
+    const layouts = try allocator.alloc(c.VkDescriptorSetLayout, swapChainImages.len);
+    defer allocator.free(layouts);
+
+    for (layouts) |*layout| layout.* = descriptorSetLayouts[0];
+
+    const allocInfo = c.VkDescriptorSetAllocateInfo{
+        .sType = .VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = descriptorPool,
+        .descriptorSetCount = @intCast(u32, layouts.len),
+        .pSetLayouts = layouts.ptr,
+        .pNext = null,
+    };
+
+    descriptorSets = try allocator.alloc(c.VkDescriptorSet, swapChainImages.len);
+    errdefer allocator.free(descriptorSets);
+
+    try checkSuccess(c.vkAllocateDescriptorSets(global_device, &allocInfo, descriptorSets.ptr));
+
+    for (uniformBuffers) |buffer, i| {
+        const bufferInfos = [_]c.VkDescriptorBufferInfo{c.VkDescriptorBufferInfo{
+            .buffer = buffer,
+            .offset = 0,
+            .range = @sizeOf(UniformBufferObject),
+        }};
+
+        const writes = [_]c.VkWriteDescriptorSet{c.VkWriteDescriptorSet{
+            .sType = .VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = descriptorSets[i],
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorType = .VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .pBufferInfo = &bufferInfos,
+            .pImageInfo = null,
+            .pTexelBufferView = null,
+            .pNext = null,
+        }};
+
+        c.vkUpdateDescriptorSets(global_device, writes.len, &writes, 0, null);
+    }
+}
+
 fn createCommandBuffers(allocator: *Allocator) !void {
     commandBuffers = try allocator.alloc(c.VkCommandBuffer, swapChainFramebuffers.len);
 
@@ -353,7 +482,7 @@ fn createCommandBuffers(allocator: *Allocator) !void {
 
         try checkSuccess(c.vkBeginCommandBuffer(commandBuffers[i], &beginInfo));
 
-        const clearColor = c.VkClearValue{ .color = c.VkClearColorValue{ .float32 = [_]f32{ 0.0, 0.0, 0.0, 1.0 } } };
+        const clearColor = c.VkClearValue{ .color = c.VkClearColorValue{ .float32 = [_]f32{ 0.2, 0.2, 0.2, 1.0 } } };
 
         const renderPassInfo = c.VkRenderPassBeginInfo{
             .sType = c.VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -376,6 +505,8 @@ fn createCommandBuffers(allocator: *Allocator) !void {
             const vertexBuffers = [_]c.VkBuffer{vertexBuffer};
             const offsets = [_]c.VkDeviceSize{0};
             c.vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &vertexBuffers, &offsets);
+
+            c.vkCmdBindDescriptorSets(commandBuffers[i], c.VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, util.arrayPtr(&descriptorSets[i]), 0, null);
 
             c.vkCmdDraw(commandBuffers[i], vertexData.len, 1, 0, 0);
         }
@@ -544,7 +675,7 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
         .polygonMode = c.VK_POLYGON_MODE_FILL,
         .lineWidth = 1.0,
         .cullMode = @intCast(u32, @enumToInt(c.VK_CULL_MODE_BACK_BIT)),
-        .frontFace = c.VK_FRONT_FACE_CLOCKWISE,
+        .frontFace = c.VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable = c.VK_FALSE,
 
         .pNext = null,
@@ -592,12 +723,13 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
 
     const pipelineLayoutInfo = c.VkPipelineLayoutCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0,
+        .setLayoutCount = 1,
+        .pSetLayouts = &descriptorSetLayouts,
         .pushConstantRangeCount = 0,
+        .pPushConstantRanges = null,
+
         .pNext = null,
         .flags = 0,
-        .pSetLayouts = null,
-        .pPushConstantRanges = null,
     };
 
     try checkSuccess(c.vkCreatePipelineLayout(global_device, &pipelineLayoutInfo, null, &pipelineLayout));
@@ -695,6 +827,26 @@ fn createRenderPass() !void {
     };
 
     try checkSuccess(c.vkCreateRenderPass(global_device, &renderPassInfo, null, &renderPass));
+}
+
+fn createDescriptorSetLayout() !void {
+    const uboLayoutBindings = [_]c.VkDescriptorSetLayoutBinding{c.VkDescriptorSetLayoutBinding{
+        .binding = 0,
+        .descriptorType = .VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = @enumToInt(c.VK_SHADER_STAGE_VERTEX_BIT),
+        .pImmutableSamplers = null,
+    }};
+
+    const layoutInfo = c.VkDescriptorSetLayoutCreateInfo{
+        .sType = .VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = uboLayoutBindings.len,
+        .pBindings = &uboLayoutBindings,
+        .pNext = null,
+        .flags = 0,
+    };
+
+    try checkSuccess(c.vkCreateDescriptorSetLayout(global_device, &layoutInfo, null, &descriptorSetLayouts[0]));
 }
 
 fn createImageViews(allocator: *Allocator) !void {
@@ -1207,6 +1359,8 @@ fn drawFrame() !void {
     var imageIndex: u32 = undefined;
     try checkSuccess(c.vkAcquireNextImageKHR(global_device, swapChain, maxInt(u64), imageAvailableSemaphores[currentFrame], null, &imageIndex));
 
+    try updateUniformBuffer(imageIndex);
+
     var waitSemaphores = [_]c.VkSemaphore{imageAvailableSemaphores[currentFrame]};
     var waitStages = [_]c.VkPipelineStageFlags{c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
@@ -1246,6 +1400,31 @@ fn drawFrame() !void {
     try checkSuccess(c.vkQueuePresentKHR(presentQueue, &presentInfo));
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+var hasDumped = false;
+
+fn updateUniformBuffer(index: u32) !void {
+    const time = currentTime();
+
+    var ubo = UniformBufferObject{
+        .model = Mat4.Identity,
+        .view = Mat4.Identity,
+        .proj = Mat4.Identity,
+    };
+
+    geo.Generic.setMat3(&ubo.model, Rotor3.aroundZ(time * math.pi * 0.5).toMat3());
+    ubo.proj = geo.symmetricOrtho(1, -f32(HEIGHT) / f32(WIDTH), -1, 1);
+
+    if (!hasDumped) {
+        std.debug.warn("proj = {}\n", ubo.proj);
+        hasDumped = true;
+    }
+
+    var data: ?*c_void = undefined;
+    try checkSuccess(c.vkMapMemory(global_device, uniformBuffersMemory[index], 0, @sizeOf(UniformBufferObject), 0, &data));
+    @memcpy(@ptrCast([*]u8, data), @ptrCast([*]const u8, &ubo), @sizeOf(UniformBufferObject));
+    c.vkUnmapMemory(global_device, uniformBuffersMemory[index]);
 }
 
 fn hash_cstr(a: [*]const u8) u32 {
