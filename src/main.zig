@@ -1098,15 +1098,15 @@ fn setupDebugCallback() error{FailedToSetUpDebugCallback}!void {
         .pUserData = null,
     };
 
-    if (CreateDebugReportCallbackEXT(&createInfo, null, &callback) != c.VK_SUCCESS) {
+    if (CreateDebugReportCallbackEXT(&createInfo, null, &callback) != .SUCCESS) {
         return error.FailedToSetUpDebugCallback;
     }
 }
 
 fn DestroyDebugReportCallbackEXT(
-    pAllocator: ?*const c.VkAllocationCallbacks,
+    pAllocator: ?*const vk.AllocationCallbacks,
 ) void {
-    const func = @ptrCast(c.PFN_vkDestroyDebugReportCallbackEXT, c.vkGetInstanceProcAddr(
+    const func = @ptrCast(?@typeOf(vk.vkDestroyDebugReportCallbackEXT), vk.GetInstanceProcAddr(
         instance,
         c"vkDestroyDebugReportCallbackEXT",
     )) orelse unreachable;
@@ -1114,14 +1114,14 @@ fn DestroyDebugReportCallbackEXT(
 }
 
 fn CreateDebugReportCallbackEXT(
-    pCreateInfo: *const c.VkDebugReportCallbackCreateInfoEXT,
-    pAllocator: ?*const c.VkAllocationCallbacks,
-    pCallback: *c.VkDebugReportCallbackEXT,
-) c.VkResult {
-    const func = @ptrCast(c.PFN_vkCreateDebugReportCallbackEXT, c.vkGetInstanceProcAddr(
+    pCreateInfo: *const vk.DebugReportCallbackCreateInfoEXT,
+    pAllocator: ?*const vk.AllocationCallbacks,
+    pCallback: *vk.DebugReportCallbackEXT,
+) vk.Result {
+    const func = @ptrCast(?@typeOf(vk.vkCreateDebugReportCallbackEXT), vk.GetInstanceProcAddr(
         instance,
         c"vkCreateDebugReportCallbackEXT",
-    )) orelse return c.VK_ERROR_EXTENSION_NOT_PRESENT;
+    )) orelse return .ERROR_EXTENSION_NOT_PRESENT;
     return func(instance, pCreateInfo, pAllocator, pCallback);
 }
 
