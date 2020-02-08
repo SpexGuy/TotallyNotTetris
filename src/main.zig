@@ -763,13 +763,13 @@ fn chooseSwapSurfaceFormat(availableFormats: []vk.SurfaceFormatKHR) vk.SurfaceFo
     if (availableFormats.len == 1 and availableFormats[0].format == .UNDEFINED) {
         return vk.SurfaceFormatKHR{
             .format = .B8G8R8A8_UNORM,
-            .colorSpace = .SRGB_NONLINEAR_KHR,
+            .colorSpace = .SRGB_NONLINEAR,
         };
     }
 
     for (availableFormats) |availableFormat| {
         if (availableFormat.format == .B8G8R8A8_UNORM and
-            availableFormat.colorSpace == .SRGB_NONLINEAR_KHR)
+            availableFormat.colorSpace == .SRGB_NONLINEAR)
         {
             return availableFormat;
         }
@@ -779,12 +779,12 @@ fn chooseSwapSurfaceFormat(availableFormats: []vk.SurfaceFormatKHR) vk.SurfaceFo
 }
 
 fn chooseSwapPresentMode(availablePresentModes: []vk.PresentModeKHR) vk.PresentModeKHR {
-    var bestMode: vk.PresentModeKHR = .FIFO_KHR;
+    var bestMode: vk.PresentModeKHR = .FIFO;
 
     for (availablePresentModes) |availablePresentMode| {
-        if (availablePresentMode == .MAILBOX_KHR) {
+        if (availablePresentMode == .MAILBOX) {
             return availablePresentMode;
-        } else if (availablePresentMode == .IMMEDIATE_KHR) {
+        } else if (availablePresentMode == .IMMEDIATE) {
             bestMode = availablePresentMode;
         }
     }
@@ -843,7 +843,7 @@ fn createSwapChain(allocator: *Allocator) !void {
         .pQueueFamilyIndices = if (different_families) &queueFamilyIndices else &([_]u32{ 0, 0 }),
 
         .preTransform = swapChainSupport.capabilities.currentTransform,
-        .compositeAlpha = vk.CompositeAlphaFlagBitsKHR.COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .compositeAlpha = vk.CompositeAlphaFlagBitsKHR.OPAQUE_BIT,
         .presentMode = presentMode,
         .clipped = vk.TRUE,
 
@@ -852,7 +852,7 @@ fn createSwapChain(allocator: *Allocator) !void {
 
     swapChain = try vk.CreateSwapchainKHR(global_device, createInfo, null);
 
-    imageCount = try vk.GetSwapchainImagesKHRCount(global_device, swapChain);
+    imageCount = try vk.GetSwapchainImagesCountKHR(global_device, swapChain);
     swapChainImages = try allocator.alloc(vk.Image, imageCount);
     _ = try vk.GetSwapchainImagesKHR(global_device, swapChain, swapChainImages);
 
@@ -1030,13 +1030,13 @@ fn querySwapChainSupport(allocator: *Allocator, device: vk.PhysicalDevice) !Swap
 
     details.capabilities = try vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface);
 
-    var formatCount = try vk.GetPhysicalDeviceSurfaceFormatsKHRCount(device, surface);
+    var formatCount = try vk.GetPhysicalDeviceSurfaceFormatsCountKHR(device, surface);
     if (formatCount != 0) {
         try details.formats.resize(formatCount);
         _ = try vk.GetPhysicalDeviceSurfaceFormatsKHR(device, surface, details.formats.items);
     }
 
-    var presentModeCount = try vk.GetPhysicalDeviceSurfacePresentModesKHRCount(device, surface);
+    var presentModeCount = try vk.GetPhysicalDeviceSurfacePresentModesCountKHR(device, surface);
     if (presentModeCount != 0) {
         try details.presentModes.resize(presentModeCount);
         _ = try vk.GetPhysicalDeviceSurfacePresentModesKHR(device, surface, details.presentModes.items);
@@ -1093,7 +1093,7 @@ fn setupDebugCallback() error{FailedToSetUpDebugCallback}!void {
     if (!enableValidationLayers) return;
 
     var createInfo = vk.DebugReportCallbackCreateInfoEXT{
-        .flags = vk.DebugReportFlagBitsEXT.DEBUG_REPORT_ERROR_BIT_EXT | vk.DebugReportFlagBitsEXT.DEBUG_REPORT_WARNING_BIT_EXT,
+        .flags = vk.DebugReportFlagBitsEXT.ERROR_BIT | vk.DebugReportFlagBitsEXT.WARNING_BIT,
         .pfnCallback = debugCallback,
         .pUserData = null,
     };
