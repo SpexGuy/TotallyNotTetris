@@ -9,6 +9,7 @@ pub fn build(b: *Builder) !void {
     const exe = b.addExecutable("zig-vulkan-triangle", "src/main.zig");
     exe.setBuildMode(mode);
     exe.linkSystemLibrary("c");
+    exe.addCSourceFile("extern_c/stb/stb_image.c", [_][]const u8{"-std=c99"});
     if (std.os.windows.is_the_target) {
         exe.linkSystemLibrary("lib/win/glfw3dll");
         exe.linkSystemLibrary("lib/win/vulkan-1");
