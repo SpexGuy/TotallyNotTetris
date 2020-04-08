@@ -4,8 +4,8 @@ const testing = std.testing;
 
 /// A 2-dimensional vector, representing the quantity x*e1 + y*e2.
 pub const Vec2 = extern struct {
-    pub x: f32,
-    pub y: f32,
+    x: f32,
+    y: f32,
 
     /// (0,0)
     pub const Zero = init(0, 0);
@@ -220,22 +220,21 @@ pub const Vec2 = extern struct {
         if (!math.approxEq(f32, expected.x, actual.x, epsilon) or
             !math.approxEq(f32, expected.y, actual.y, epsilon))
         {
-            std.debug.panic(
-                "Expected Vec2({}, {}), found Vec2({}, {})",
+            std.debug.panic("Expected Vec2({}, {}), found Vec2({}, {})", .{
                 expected.x,
                 expected.y,
                 actual.x,
                 actual.y,
-            );
+            });
         }
     }
 };
 
 /// A 3-dimensional vector, representing the quantity x*e1 + y*e2 + z*e3.
 pub const Vec3 = extern struct {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
+    x: f32,
+    y: f32,
+    z: f32,
 
     /// (0,0,0)
     pub const Zero = init(0, 0, 0);
@@ -454,25 +453,24 @@ pub const Vec3 = extern struct {
             !math.approxEq(f32, expected.y, actual.y, epsilon) or
             !math.approxEq(f32, expected.z, actual.z, epsilon))
         {
-            std.debug.panic(
-                "Expected Vec3({}, {}, {}), found Vec3({}, {}, {})",
+            std.debug.panic("Expected Vec3({}, {}, {}), found Vec3({}, {}, {})", .{
                 expected.x,
                 expected.y,
                 expected.z,
                 actual.x,
                 actual.y,
                 actual.z,
-            );
+            });
         }
     }
 };
 
 /// A 4-dimensional vector, representing the quantity x*e1 + y*e2 + z*e3 + w*e4.
 pub const Vec4 = extern struct {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-    pub w: f32,
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
 
     /// (0,0,0,0)
     pub const Zero = init(0, 0, 0, 0);
@@ -685,8 +683,7 @@ pub const Vec4 = extern struct {
             !math.approxEq(f32, expected.z, actual.z, epsilon) or
             !math.approxEq(f32, expected.w, actual.w, epsilon))
         {
-            std.debug.panic(
-                "Expected Vec4({}, {}, {}, {}), found Vec4({}, {}, {}, {})",
+            std.debug.panic("Expected Vec4({}, {}, {}, {}), found Vec4({}, {}, {}, {})", .{
                 expected.x,
                 expected.y,
                 expected.z,
@@ -695,7 +692,7 @@ pub const Vec4 = extern struct {
                 actual.y,
                 actual.z,
                 actual.w,
-            );
+            });
         }
     }
 };
@@ -705,9 +702,9 @@ pub const BiVec3 = extern struct {
     // Field order is set up here to match that of Vec3,
     // so BitCasting a Vec3 to a BiVec3 is equivalent to
     // Vec3.dual(..)
-    pub yz: f32,
-    pub zx: f32,
-    pub xy: f32,
+    yz: f32,
+    zx: f32,
+    xy: f32,
 
     /// (0,0,0)
     pub const Zero = init(0, 0, 0);
@@ -837,15 +834,14 @@ pub const BiVec3 = extern struct {
             !math.approxEq(f32, expected.zx, actual.zx, epsilon) or
             !math.approxEq(f32, expected.xy, actual.xy, epsilon))
         {
-            std.debug.panic(
-                "Expected BiVec3({}, {}, {}), found BiVec3({}, {}, {})",
+            std.debug.panic("Expected BiVec3({}, {}, {}), found BiVec3({}, {}, {})", .{
                 expected.yz,
                 expected.zx,
                 expected.xy,
                 actual.yz,
                 actual.zx,
                 actual.xy,
-            );
+            });
         }
     }
 };
@@ -881,10 +877,10 @@ test "compile Vec2" {
     _ = b.toVec3(1);
     _ = b.toVec4(0, 1);
     _ = Vec2.pack4(b, a);
-    testing.expectEqual(usize(2), slice.len);
-    testing.expectEqual(f32(2), slice[1]);
+    testing.expectEqual(@as(usize, 2), slice.len);
+    testing.expectEqual(@as(f32, 2), slice[1]);
     slice[1] = 4;
-    testing.expectEqual(f32(4), b.y);
+    testing.expectEqual(@as(f32, 4), b.y);
 }
 
 test "compile Vec3" {
@@ -915,13 +911,13 @@ test "compile Vec3" {
     const as2 = b.asVec2();
     const val2 = b.toVec2();
     _ = b.toVec4(1);
-    testing.expectEqual(usize(3), slice.len);
-    testing.expectEqual(f32(2), slice[1]);
+    testing.expectEqual(@as(usize, 3), slice.len);
+    testing.expectEqual(@as(f32, 2), slice[1]);
     slice[1] = 4;
-    testing.expectEqual(f32(4), b.y);
-    testing.expectEqual(f32(4), as2.y);
+    testing.expectEqual(@as(f32, 4), b.y);
+    testing.expectEqual(@as(f32, 4), as2.y);
     as2.x = 7;
-    testing.expectEqual(f32(7), b.x);
+    testing.expectEqual(@as(f32, 7), b.x);
     testing.expectEqual(val2.x, 2);
 }
 
@@ -953,15 +949,15 @@ test "compile Vec4" {
     const val2 = b.toVec2();
     const as3 = b.asVec3();
     _ = b.toVec3();
-    testing.expectEqual(usize(4), slice.len);
-    testing.expectEqual(f32(2), slice[1]);
+    testing.expectEqual(@as(usize, 4), slice.len);
+    testing.expectEqual(@as(f32, 2), slice[1]);
     slice[1] = 4;
-    testing.expectEqual(f32(4), b.y);
-    testing.expectEqual(f32(4), as2.y);
-    testing.expectEqual(f32(4), as3.y);
+    testing.expectEqual(@as(f32, 4), b.y);
+    testing.expectEqual(@as(f32, 4), as2.y);
+    testing.expectEqual(@as(f32, 4), as3.y);
     as2.x = 7;
-    testing.expectEqual(f32(7), b.x);
-    testing.expectEqual(f32(7), as3.x);
+    testing.expectEqual(@as(f32, 7), b.x);
+    testing.expectEqual(@as(f32, 7), as3.x);
     testing.expectEqual(val2.x, 2);
 }
 

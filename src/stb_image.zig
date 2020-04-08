@@ -1,5 +1,5 @@
-extern fn stbi_load(filename: [*]const u8, x: *i32, y: *i32, channels_in_file: *i32, desired_channels: i32) ?[*]u8;
-extern fn stbi_failure_reason() ?[*]const u8;
+extern fn stbi_load(filename: [*:0]const u8, x: *i32, y: *i32, channels_in_file: *i32, desired_channels: i32) ?[*]u8;
+extern fn stbi_failure_reason() ?[*:0]const u8;
 extern fn stbi_image_free(retval_from_stbi_load: [*]u8) void;
 
 pub const Image = struct {
@@ -8,11 +8,11 @@ pub const Image = struct {
     channels: i32,
     data: [*]u8,
 };
-pub fn load(filename: [*]const u8) !Image {
+pub fn load(filename: [*:0]const u8) !Image {
     return loadWithChannels(filename, 0);
 }
 
-pub fn loadWithChannels(filename: [*]const u8, desired_channels: i32) !Image {
+pub fn loadWithChannels(filename: [*:0]const u8, desired_channels: i32) !Image {
     var width: i32 = undefined;
     var height: i32 = undefined;
     var channels: i32 = undefined;

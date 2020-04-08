@@ -8,9 +8,9 @@ usingnamespace @import("xform.zig");
 /// A 3x3 matrix.  When required to choose, this library uses
 /// the column-major convention.
 pub const Mat3 = extern struct {
-    pub x: Vec3,
-    pub y: Vec3,
-    pub z: Vec3,
+    x: Vec3,
+    y: Vec3,
+    z: Vec3,
 
     pub const Identity = Mat3{
         .x = Vec3.X,
@@ -140,10 +140,10 @@ pub const Mat3 = extern struct {
 /// A 4x3 matrix.  When required to choose, this library uses
 /// the column-major convention.
 pub const Mat4x3 = extern struct {
-    pub x: Vec3,
-    pub y: Vec3,
-    pub z: Vec3,
-    pub w: Vec3,
+    x: Vec3,
+    y: Vec3,
+    z: Vec3,
+    w: Vec3,
 
     pub const Identity = Mat4x3{
         .x = Vec3.X,
@@ -309,10 +309,10 @@ pub const Mat4x3 = extern struct {
 /// A 4x4 matrix.  When required to choose, this library uses
 /// the column-major convention.
 pub const Mat4 = extern struct {
-    pub x: Vec4,
-    pub y: Vec4,
-    pub z: Vec4,
-    pub w: Vec4,
+    x: Vec4,
+    y: Vec4,
+    z: Vec4,
+    w: Vec4,
 
     pub const Identity = Mat4{
         .x = Vec4.X,
@@ -369,7 +369,7 @@ pub const Mat4 = extern struct {
     }
 
     pub fn postScale(l: Mat4, r: f32) Mat4 {
-        return Mat4x3{
+        return Mat4{
             .x = l.x.scale(r),
             .y = l.y.scale(r),
             .z = l.z.scale(r),
@@ -461,7 +461,7 @@ pub const Generic = struct {
     }
 
     pub fn inverse3x3(m: var) !Mat3 {
-        const det = @inlineCall(determinant3x3, m);
+        const det = @call(.{ .modifier = .always_inline }, determinant3x3, .{m});
         const mult = 1.0 / det;
         if (!math.isFinite(mult)) return error.Singular;
         return Mat3{
@@ -484,7 +484,7 @@ pub const Generic = struct {
     }
 
     pub fn transposedInverse3x3(m: var) !Mat3 {
-        const det = @inlineCall(determinant3x3, m);
+        const det = @call(.{ .modifier = .always_inline }, determinant3x3, .{m});
         const mult = 1.0 / det;
         if (!math.isFinite(mult)) return error.Singular;
         return Mat3{
@@ -815,9 +815,9 @@ pub const Generic = struct {
 
     pub fn postRotateMat3(l: var, r: Rotor3) Mat3 {
         return Mat3{
-            .x = @inlineCall(Rotor3.apply, r, Vec3.init(l.x.x, l.x.y, l.x.z)),
-            .y = @inlineCall(Rotor3.apply, r, Vec3.init(l.y.x, l.y.y, l.y.z)),
-            .z = @inlineCall(Rotor3.apply, r, Vec3.init(l.z.x, l.z.y, l.z.z)),
+            .x = @call(.{ .modifier = .always_inline }, Rotor3.apply, .{ r, Vec3.init(l.x.x, l.x.y, l.x.z) }),
+            .y = @call(.{ .modifier = .always_inline }, Rotor3.apply, .{ r, Vec3.init(l.y.x, l.y.y, l.y.z) }),
+            .z = @call(.{ .modifier = .always_inline }, Rotor3.apply, .{ r, Vec3.init(l.z.x, l.z.y, l.z.z) }),
         };
     }
 

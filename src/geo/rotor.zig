@@ -114,11 +114,11 @@ pub const Rotor2 = extern struct {
 
 pub const Rotor3 = extern struct {
     /// The dot product of the two rotor vectors.
-    pub dot: f32,
+    dot: f32,
 
     /// The wedge product of the two rotor vectors.
     /// This is the plane in which the rotor rotates.
-    pub wedge: BiVec3,
+    wedge: BiVec3,
 
     /// The rotor that performs no rotation
     pub const Identity = Rotor3{ .dot = 1.0, .wedge = BiVec3.Zero };
@@ -471,8 +471,7 @@ pub const Rotor3 = extern struct {
             !math.approxEq(f32, expected.wedge.zx, actual.wedge.zx, epsilon) or
             !math.approxEq(f32, expected.wedge.xy, actual.wedge.xy, epsilon))
         {
-            std.debug.panic(
-                "Expected Rotor3({}, ({}, {}, {})), found Rotor3({}, ({}, {}, {}))",
+            std.debug.panic("Expected Rotor3({}, ({}, {}, {})), found Rotor3({}, ({}, {}, {}))", .{
                 expected.dot,
                 expected.wedge.yz,
                 expected.wedge.zx,
@@ -481,7 +480,7 @@ pub const Rotor3 = extern struct {
                 actual.wedge.yz,
                 actual.wedge.zx,
                 actual.wedge.xy,
-            );
+            });
         }
     }
 };
@@ -614,14 +613,14 @@ test "Rotor3.diff" {
     var bigRnd = std.rand.DefaultPrng.init(42);
     const rnd = &bigRnd.random;
 
-    var i = u32(0);
+    var i = @as(u32, 0);
     while (i < 10) : (i += 1) {
         const a = randRotor3(rnd);
         const b = randRotor3(rnd);
         const diff = a.diff(b);
         const recombined = diff.preMul(a);
         Rotor3.expectNear(b, recombined, epsilon);
-        var j = u32(0);
+        var j = @as(u32, 0);
         while (j < 10) : (j += 1) {
             const vec = randVec3(rnd);
             Vec3.expectNear(b.apply(vec), diff.apply(a.apply(vec)), epsilon);
@@ -633,7 +632,7 @@ test "Rotor3.lerp" {
     const epsilon = 1e-5;
     var bigRnd = std.rand.DefaultPrng.init(42);
     const rnd = &bigRnd.random;
-    var i = u32(0);
+    var i = @as(u32, 0);
     while (i < 10) : (i += 1) {
         const a = randRotor3(rnd);
         const b = randRotor3(rnd);

@@ -15,6 +15,8 @@ const vk = @import("vk.zig");
 const glfw = @import("glfw.zig");
 
 const util = @import("util.zig");
+const arrayPtr = util.arrayPtr;
+const emptySlice = util.emptySlice;
 
 const geo = @import("geo/geo.zig");
 const Vec2 = geo.Vec2;
@@ -32,7 +34,7 @@ const HEIGHT = 600;
 const MAX_FRAMES_IN_FLIGHT = 2;
 
 const enableValidationLayers = std.debug.runtime_safety;
-const validationLayers = [_]vk.CString{c"VK_LAYER_LUNARG_standard_validation"};
+const validationLayers = [_]vk.CString{"VK_LAYER_LUNARG_standard_validation"};
 const deviceExtensions = [_]vk.CString{vk.KHR_SWAPCHAIN_EXTENSION_NAME};
 
 const vertexData = [_]Vertex{
@@ -89,28 +91,26 @@ const Vertex = extern struct {
     color: Color3f,
 
     pub fn init(pos: Vec2, color: Color3f) Vertex {
-        return Vertex{
+        return .{
             .pos = pos,
             .color = color,
         };
     }
 
-    const BindingDescriptions = [_]vk.VertexInputBindingDescription{
-        vk.VertexInputBindingDescription{
-            .binding = 0,
-            .stride = @sizeOf(Vertex),
-            .inputRate = .VERTEX,
-        },
-    };
+    const BindingDescriptions = [_]vk.VertexInputBindingDescription{.{
+        .binding = 0,
+        .stride = @sizeOf(Vertex),
+        .inputRate = .VERTEX,
+    }};
 
     const AttributeDescriptions = [_]vk.VertexInputAttributeDescription{
-        vk.VertexInputAttributeDescription{
+        .{
             .binding = 0,
             .location = 0,
             .format = .R32G32_SFLOAT,
             .offset = @byteOffsetOf(Vertex, "pos"),
         },
-        vk.VertexInputAttributeDescription{
+        .{
             .binding = 0,
             .location = 1,
             .format = .R32G32B32_SFLOAT,
@@ -130,7 +130,7 @@ const QueueFamilyIndices = struct {
     presentFamily: ?u32,
 
     fn init() QueueFamilyIndices {
-        return QueueFamilyIndices{
+        return .{
             .graphicsFamily = null,
             .presentFamily = null,
         };
@@ -147,14 +147,11 @@ const SwapChainSupportDetails = struct {
     presentModes: std.ArrayList(vk.PresentModeKHR),
 
     fn init(allocator: *Allocator) SwapChainSupportDetails {
-        var result = SwapChainSupportDetails{
-            .capabilities = undefined,
+        return .{
+            .capabilities = mem.zeroes(vk.SurfaceCapabilitiesKHR),
             .formats = std.ArrayList(vk.SurfaceFormatKHR).init(allocator),
             .presentModes = std.ArrayList(vk.PresentModeKHR).init(allocator),
         };
-        const slice = @sliceToBytes((*[1]vk.SurfaceCapabilitiesKHR)(&result.capabilities)[0..1]);
-        std.mem.set(u8, slice, 0);
-        return result;
     }
 
     fn deinit(self: *SwapChainSupportDetails) void {
@@ -172,7 +169,7 @@ pub fn main() !void {
     glfw.glfwWindowHint(glfw.GLFW_CLIENT_API, glfw.GLFW_NO_API);
     glfw.glfwWindowHint(glfw.GLFW_RESIZABLE, glfw.GLFW_FALSE);
 
-    const window = glfw.glfwCreateWindow(WIDTH, HEIGHT, c"Zig Vulkan Triangle", null, null) orelse return error.GlfwCreateWindowFailed;
+    const window = glfw.glfwCreateWindow(WIDTH, HEIGHT, "Zig Vulkan Triangle", null, null) orelse return error.GlfwCreateWindowFailed;
     defer glfw.glfwDestroyWindow(window);
 
     const allocator = std.heap.c_allocator;
@@ -255,19 +252,19 @@ fn initVulkan(allocator: *Allocator, window: *glfw.GLFWwindow) !void {
     try createSyncObjects();
 }
 
-fn findMemoryType(typeFilter: u32, properties: u32) !u32 {
+fn findMemoryType(typeFilter: u32, properties: vk.MemoryPropertyFlags) !u32 {
     var memProperties = vk.GetPhysicalDeviceMemoryProperties(physicalDevice);
 
     var i: u32 = 0;
     while (i < memProperties.memoryTypeCount) : (i += 1) {
-        if ((typeFilter & (u32(1) << @intCast(u5, i))) != 0 and ((memProperties.memoryTypes[i].propertyFlags & properties) == properties))
+        if ((typeFilter & (@as(u32, 1) << @intCast(u5, i))) != 0 and memProperties.memoryTypes[i].propertyFlags.hasAllSet(properties))
             return i;
     }
 
     return error.NoSuitableMemory;
 }
 
-fn createBuffer(size: vk.DeviceSize, usage: u32, properties: u32, outBuffer: *vk.Buffer, outBufferMemory: *vk.DeviceMemory) !void {
+fn createBuffer(size: vk.DeviceSize, usage: vk.BufferUsageFlags, properties: vk.MemoryPropertyFlags, outBuffer: *vk.Buffer, outBufferMemory: *vk.DeviceMemory) !void {
     const bufferInfo = vk.BufferCreateInfo{
         .size = size,
         .usage = usage,
@@ -297,56 +294,56 @@ fn copyBuffer(srcBuffer: vk.Buffer, dstBuffer: vk.Buffer, size: vk.DeviceSize) !
     };
 
     var commandBuffer: vk.CommandBuffer = undefined;
-    try vk.AllocateCommandBuffers(global_device, allocInfo, util.singleSlice(&commandBuffer));
+    try vk.AllocateCommandBuffers(global_device, allocInfo, arrayPtr(&commandBuffer));
 
     const beginInfo = vk.CommandBufferBeginInfo{
-        .flags = vk.CommandBufferUsageFlagBits.ONE_TIME_SUBMIT_BIT,
+        .flags = .{ .oneTimeSubmit = true },
         .pInheritanceInfo = null,
     };
     try vk.BeginCommandBuffer(commandBuffer, beginInfo);
 
-    const copyRegions = [1]vk.BufferCopy{vk.BufferCopy{
+    const copyRegion = vk.BufferCopy{
         .srcOffset = 0,
         .dstOffset = 0,
         .size = size,
-    }};
-    vk.CmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, copyRegions[0..1]);
+    };
+    vk.CmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, arrayPtr(&copyRegion));
 
     try vk.EndCommandBuffer(commandBuffer);
 
-    const submitInfo = [1]vk.SubmitInfo{vk.SubmitInfo{
+    const submitInfo = vk.SubmitInfo{
         .commandBufferCount = 1,
-        .pCommandBuffers = util.arrayPtr(&commandBuffer),
-    }};
+        .pCommandBuffers = arrayPtr(&commandBuffer),
+    };
 
-    try vk.QueueSubmit(graphicsQueue, submitInfo[0..1], null);
+    try vk.QueueSubmit(graphicsQueue, arrayPtr(&submitInfo), null);
     try vk.QueueWaitIdle(graphicsQueue);
 
-    vk.FreeCommandBuffers(global_device, commandPool, util.singleSlice(&commandBuffer));
+    vk.FreeCommandBuffers(global_device, commandPool, arrayPtr(&commandBuffer));
 }
 
 fn createVertexBuffer(allocator: *Allocator) !void {
-    const bufferSize: vk.DeviceSize = @sizeOf(@typeOf(vertexData));
+    const bufferSize: vk.DeviceSize = @sizeOf(@TypeOf(vertexData));
 
     var stagingBuffer: vk.Buffer = undefined;
     var stagingBufferMemory: vk.DeviceMemory = undefined;
     try createBuffer(
         bufferSize,
-        vk.BufferUsageFlagBits.TRANSFER_SRC_BIT,
-        vk.MemoryPropertyFlagBits.HOST_VISIBLE_BIT | vk.MemoryPropertyFlagBits.HOST_COHERENT_BIT,
+        .{ .transferSrc = true },
+        .{ .hostVisible = true, .hostCoherent = true },
         &stagingBuffer,
         &stagingBufferMemory,
     );
 
     var data: *c_void = undefined;
-    try vk.MapMemory(global_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    try vk.MapMemory(global_device, stagingBufferMemory, 0, bufferSize, .{}, &data);
     @memcpy(@ptrCast([*]u8, data), @ptrCast([*]const u8, &vertexData), bufferSize);
     vk.UnmapMemory(global_device, stagingBufferMemory);
 
     try createBuffer(
         bufferSize,
-        vk.BufferUsageFlagBits.TRANSFER_DST_BIT | vk.BufferUsageFlagBits.VERTEX_BUFFER_BIT,
-        vk.MemoryPropertyFlagBits.DEVICE_LOCAL_BIT,
+        .{ .transferDst = true, .vertexBuffer = true },
+        .{ .deviceLocal = true },
         &vertexBuffer,
         &vertexBufferMemory,
     );
@@ -358,7 +355,7 @@ fn createVertexBuffer(allocator: *Allocator) !void {
 }
 
 fn createUniformBuffers(allocator: *Allocator) !void {
-    const bufferSize = vk.DeviceSize(@sizeOf(UniformBufferObject));
+    const bufferSize = @as(vk.DeviceSize, @sizeOf(UniformBufferObject));
 
     uniformBuffers = try allocator.alloc(vk.Buffer, swapChainImages.len);
     uniformBuffersMemory = try allocator.alloc(vk.DeviceMemory, swapChainImages.len);
@@ -366,8 +363,8 @@ fn createUniformBuffers(allocator: *Allocator) !void {
     for (uniformBuffers) |*buffer, i| {
         try createBuffer(
             bufferSize,
-            vk.BufferUsageFlagBits.UNIFORM_BUFFER_BIT,
-            vk.MemoryPropertyFlagBits.HOST_VISIBLE_BIT | vk.MemoryPropertyFlagBits.HOST_COHERENT_BIT,
+            .{ .uniformBuffer = true },
+            .{ .hostVisible = true, .hostCoherent = true },
             buffer,
             &uniformBuffersMemory[i],
         );
@@ -375,7 +372,7 @@ fn createUniformBuffers(allocator: *Allocator) !void {
 }
 
 fn createDescriptorPool() !void {
-    const poolSizes = [_]vk.DescriptorPoolSize{vk.DescriptorPoolSize{
+    const poolSizes = [_]vk.DescriptorPoolSize{.{
         .inType = .UNIFORM_BUFFER,
         .descriptorCount = @intCast(u32, swapChainImages.len),
     }};
@@ -407,24 +404,24 @@ fn createDescriptorSets(allocator: *Allocator) !void {
     try vk.AllocateDescriptorSets(global_device, allocInfo, descriptorSets);
 
     for (uniformBuffers) |buffer, i| {
-        const bufferInfos = [_]vk.DescriptorBufferInfo{vk.DescriptorBufferInfo{
+        const bufferInfo = vk.DescriptorBufferInfo{
             .buffer = buffer,
             .offset = 0,
             .range = @sizeOf(UniformBufferObject),
-        }};
+        };
 
-        const writes = [_]vk.WriteDescriptorSet{vk.WriteDescriptorSet{
+        const write = vk.WriteDescriptorSet{
             .dstSet = descriptorSets[i],
             .dstBinding = 0,
             .dstArrayElement = 0,
             .descriptorType = .UNIFORM_BUFFER,
             .descriptorCount = 1,
-            .pBufferInfo = &bufferInfos,
+            .pBufferInfo = arrayPtr(&bufferInfo),
             .pImageInfo = undefined,
             .pTexelBufferView = undefined,
-        }};
+        };
 
-        vk.UpdateDescriptorSets(global_device, writes[0..1], [_]vk.CopyDescriptorSet{});
+        vk.UpdateDescriptorSets(global_device, arrayPtr(&write), emptySlice(vk.CopyDescriptorSet));
     }
 }
 
@@ -441,23 +438,23 @@ fn createCommandBuffers(allocator: *Allocator) !void {
 
     for (commandBuffers) |command_buffer, i| {
         const beginInfo = vk.CommandBufferBeginInfo{
-            .flags = vk.CommandBufferUsageFlagBits.SIMULTANEOUS_USE_BIT,
+            .flags = .{ .simultaneousUse = true },
             .pInheritanceInfo = null,
         };
 
         try vk.BeginCommandBuffer(commandBuffers[i], beginInfo);
 
-        const clearColor = vk.ClearValue{ .color = vk.ClearColorValue{ .float32 = [_]f32{ 0.2, 0.2, 0.2, 1.0 } } };
+        const clearColor = vk.ClearValue{ .color = .{ .float32 = .{ 0.2, 0.2, 0.2, 1.0 } } };
 
         const renderPassInfo = vk.RenderPassBeginInfo{
             .renderPass = renderPass,
             .framebuffer = swapChainFramebuffers[i],
-            .renderArea = vk.Rect2D{
-                .offset = vk.Offset2D{ .x = 0, .y = 0 },
+            .renderArea = .{
+                .offset = .{ .x = 0, .y = 0 },
                 .extent = swapChainExtent,
             },
             .clearValueCount = 1,
-            .pClearValues = (*const [1]vk.ClearValue)(&clearColor),
+            .pClearValues = arrayPtr(&clearColor),
         };
 
         vk.CmdBeginRenderPass(commandBuffers[i], renderPassInfo, .INLINE);
@@ -465,9 +462,9 @@ fn createCommandBuffers(allocator: *Allocator) !void {
             vk.CmdBindPipeline(commandBuffers[i], .GRAPHICS, graphicsPipeline);
 
             const offsets = [_]vk.DeviceSize{0};
-            vk.CmdBindVertexBuffers(commandBuffers[i], 0, util.singleSlice(&vertexBuffer), offsets);
+            vk.CmdBindVertexBuffers(commandBuffers[i], 0, arrayPtr(&vertexBuffer), &offsets);
 
-            vk.CmdBindDescriptorSets(commandBuffers[i], .GRAPHICS, pipelineLayout, 0, descriptorSets[i..i+1], [_]u32{});
+            vk.CmdBindDescriptorSets(commandBuffers[i], .GRAPHICS, pipelineLayout, 0, arrayPtr(&descriptorSets[i]), emptySlice(u32));
 
             vk.CmdDraw(commandBuffers[i], vertexData.len, 1, 0, 0);
         }
@@ -478,17 +475,11 @@ fn createCommandBuffers(allocator: *Allocator) !void {
 }
 
 fn createSyncObjects() !void {
-    const semaphoreInfo = vk.SemaphoreCreateInfo{};
-
-    const fenceInfo = vk.FenceCreateInfo{
-        .flags = vk.FenceCreateFlagBits.SIGNALED_BIT,
-    };
-
     var i: usize = 0;
     while (i < MAX_FRAMES_IN_FLIGHT) : (i += 1) {
-        imageAvailableSemaphores[i] = try vk.CreateSemaphore(global_device, semaphoreInfo, null);
-        renderFinishedSemaphores[i] = try vk.CreateSemaphore(global_device, semaphoreInfo, null);
-        inFlightFences[i] = try vk.CreateFence(global_device, fenceInfo, null);
+        imageAvailableSemaphores[i] = try vk.CreateSemaphore(global_device, .{}, null);
+        renderFinishedSemaphores[i] = try vk.CreateSemaphore(global_device, .{}, null);
+        inFlightFences[i] = try vk.CreateFence(global_device, .{ .flags = .{ .signaled = true } }, null);
     }
 }
 
@@ -506,12 +497,10 @@ fn createFramebuffers(allocator: *Allocator) !void {
     swapChainFramebuffers = try allocator.alloc(vk.Framebuffer, swapChainImageViews.len);
 
     for (swapChainImageViews) |swap_chain_image_view, i| {
-        const attachments = [_]vk.ImageView{swap_chain_image_view};
-
         const framebufferInfo = vk.FramebufferCreateInfo{
             .renderPass = renderPass,
             .attachmentCount = 1,
-            .pAttachments = &attachments,
+            .pAttachments = arrayPtr(&swap_chain_image_view),
             .width = swapChainExtent.width,
             .height = swapChainExtent.height,
             .layers = 1,
@@ -524,35 +513,34 @@ fn createFramebuffers(allocator: *Allocator) !void {
 fn createShaderModule(code: []align(@alignOf(u32)) const u8) !vk.ShaderModule {
     const createInfo = vk.ShaderModuleCreateInfo{
         .codeSize = code.len,
-        .pCode = @bytesToSlice(u32, code).ptr,
+        .pCode = @ptrCast([*]const u32, code.ptr),
     };
 
     return try vk.CreateShaderModule(global_device, createInfo, null);
 }
 
 fn createGraphicsPipeline(allocator: *Allocator) !void {
-    const vertShaderCode = try std.io.readFileAllocAligned(allocator, "shaders\\vert.spv", @alignOf(u32));
+    const vertShaderCode = try std.fs.cwd().readFileAllocAligned(allocator, "shaders\\vert.spv", ~@as(usize, 0), @alignOf(u32));
     defer allocator.free(vertShaderCode);
 
-    const fragShaderCode = try std.io.readFileAllocAligned(allocator, "shaders\\frag.spv", @alignOf(u32));
+    const fragShaderCode = try std.fs.cwd().readFileAllocAligned(allocator, "shaders\\frag.spv", ~@as(usize, 0), @alignOf(u32));
     defer allocator.free(fragShaderCode);
 
     const vertShaderModule = try createShaderModule(vertShaderCode);
     const fragShaderModule = try createShaderModule(fragShaderCode);
 
-    const vertShaderStageInfo = vk.PipelineShaderStageCreateInfo{
-        .stage = vk.ShaderStageFlagBits.VERTEX_BIT,
-        .module = vertShaderModule,
-        .pName = c"main",
+    const shaderStages = [_]vk.PipelineShaderStageCreateInfo{
+        .{
+            .stage = .{ .vertex = true },
+            .module = vertShaderModule,
+            .pName = "main",
+        },
+        .{
+            .stage = .{ .fragment = true },
+            .module = fragShaderModule,
+            .pName = "main",
+        },
     };
-
-    const fragShaderStageInfo = vk.PipelineShaderStageCreateInfo{
-        .stage = vk.ShaderStageFlagBits.FRAGMENT_BIT,
-        .module = fragShaderModule,
-        .pName = c"main",
-    };
-
-    const shaderStages = [_]vk.PipelineShaderStageCreateInfo{ vertShaderStageInfo, fragShaderStageInfo };
 
     const vertexInputInfo = vk.PipelineVertexInputStateCreateInfo{
         .vertexBindingDescriptionCount = Vertex.BindingDescriptions.len,
@@ -567,25 +555,25 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
         .primitiveRestartEnable = vk.FALSE,
     };
 
-    const viewport = [_]vk.Viewport{vk.Viewport{
+    const viewport = vk.Viewport{
         .x = 0.0,
         .y = 0.0,
         .width = @intToFloat(f32, swapChainExtent.width),
         .height = @intToFloat(f32, swapChainExtent.height),
         .minDepth = 0.0,
         .maxDepth = 1.0,
-    }};
+    };
 
-    const scissor = [_]vk.Rect2D{vk.Rect2D{
-        .offset = vk.Offset2D{ .x = 0, .y = 0 },
+    const scissor = vk.Rect2D{
+        .offset = .{ .x = 0, .y = 0 },
         .extent = swapChainExtent,
-    }};
+    };
 
     const viewportState = vk.PipelineViewportStateCreateInfo{
         .viewportCount = 1,
-        .pViewports = &viewport,
+        .pViewports = arrayPtr(&viewport),
         .scissorCount = 1,
-        .pScissors = &scissor,
+        .pScissors = arrayPtr(&scissor),
     };
 
     const rasterizer = vk.PipelineRasterizationStateCreateInfo{
@@ -593,7 +581,7 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
         .rasterizerDiscardEnable = vk.FALSE,
         .polygonMode = .FILL,
         .lineWidth = 1.0,
-        .cullMode = vk.CullModeFlagBits.BACK_BIT,
+        .cullMode = .{ .back = true },
         .frontFace = .COUNTER_CLOCKWISE,
         .depthBiasEnable = vk.FALSE,
 
@@ -604,7 +592,7 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
 
     const multisampling = vk.PipelineMultisampleStateCreateInfo{
         .sampleShadingEnable = vk.FALSE,
-        .rasterizationSamples = vk.SampleCountFlagBits.T_1_BIT,
+        .rasterizationSamples = .{ .t1 = true },
         .minSampleShading = 0,
         .pSampleMask = null,
         .alphaToCoverageEnable = 0,
@@ -612,7 +600,7 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
     };
 
     const colorBlendAttachment = vk.PipelineColorBlendAttachmentState{
-        .colorWriteMask = vk.ColorComponentFlagBits.R_BIT | vk.ColorComponentFlagBits.G_BIT | vk.ColorComponentFlagBits.B_BIT | vk.ColorComponentFlagBits.A_BIT,
+        .colorWriteMask = .{ .r = true, .g = true, .b = true, .a = true },
         .blendEnable = vk.FALSE,
 
         .srcColorBlendFactor = .ZERO,
@@ -627,12 +615,12 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
         .logicOpEnable = vk.FALSE,
         .logicOp = .COPY,
         .attachmentCount = 1,
-        .pAttachments = util.arrayPtr(&colorBlendAttachment),
-        .blendConstants = [_]f32{ 0, 0, 0, 0 },
+        .pAttachments = arrayPtr(&colorBlendAttachment),
+        .blendConstants = .{ 0, 0, 0, 0 },
     };
 
     const pipelineLayoutInfo = vk.PipelineLayoutCreateInfo{
-        .setLayoutCount = 1,
+        .setLayoutCount = descriptorSetLayouts.len,
         .pSetLayouts = &descriptorSetLayouts,
     };
 
@@ -661,9 +649,9 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
     try vk.CreateGraphicsPipelines(
         global_device,
         null,
-        util.singleSlice(&pipelineInfo),
+        arrayPtr(&pipelineInfo),
         null,
-        util.singleSlice(&graphicsPipeline),
+        arrayPtr(&graphicsPipeline),
     );
 
     vk.DestroyShaderModule(global_device, fragShaderModule, null);
@@ -673,7 +661,7 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
 fn createRenderPass() !void {
     const colorAttachment = vk.AttachmentDescription{
         .format = swapChainImageFormat,
-        .samples = vk.SampleCountFlagBits.T_1_BIT,
+        .samples = .{ .t1 = true },
         .loadOp = .CLEAR,
         .storeOp = .STORE,
         .stencilLoadOp = .DONT_CARE,
@@ -687,39 +675,39 @@ fn createRenderPass() !void {
         .layout = .COLOR_ATTACHMENT_OPTIMAL,
     };
 
-    const subpass = [_]vk.SubpassDescription{vk.SubpassDescription{
+    const subpass = vk.SubpassDescription{
         .pipelineBindPoint = .GRAPHICS,
         .colorAttachmentCount = 1,
-        .pColorAttachments = (*const [1]vk.AttachmentReference)(&colorAttachmentRef),
-    }};
+        .pColorAttachments = arrayPtr(&colorAttachmentRef),
+    };
 
-    const dependency = [_]vk.SubpassDependency{vk.SubpassDependency{
+    const dependency = vk.SubpassDependency{
         .srcSubpass = vk.SUBPASS_EXTERNAL,
         .dstSubpass = 0,
-        .srcStageMask = vk.PipelineStageFlagBits.COLOR_ATTACHMENT_OUTPUT_BIT,
-        .srcAccessMask = 0,
-        .dstStageMask = vk.PipelineStageFlagBits.COLOR_ATTACHMENT_OUTPUT_BIT,
-        .dstAccessMask = vk.AccessFlagBits.COLOR_ATTACHMENT_READ_BIT | vk.AccessFlagBits.COLOR_ATTACHMENT_WRITE_BIT,
-    }};
+        .srcStageMask = .{ .colorAttachmentOutput = true },
+        .srcAccessMask = .{},
+        .dstStageMask = .{ .colorAttachmentOutput = true },
+        .dstAccessMask = .{ .colorAttachmentRead = true, .colorAttachmentWrite = true },
+    };
 
     const renderPassInfo = vk.RenderPassCreateInfo{
         .attachmentCount = 1,
-        .pAttachments = (*const [1]vk.AttachmentDescription)(&colorAttachment),
+        .pAttachments = arrayPtr(&colorAttachment),
         .subpassCount = 1,
-        .pSubpasses = &subpass,
+        .pSubpasses = arrayPtr(&subpass),
         .dependencyCount = 1,
-        .pDependencies = &dependency,
+        .pDependencies = arrayPtr(&dependency),
     };
 
     renderPass = try vk.CreateRenderPass(global_device, renderPassInfo, null);
 }
 
 fn createDescriptorSetLayout() !void {
-    const uboLayoutBindings = [_]vk.DescriptorSetLayoutBinding{vk.DescriptorSetLayoutBinding{
+    const uboLayoutBindings = [_]vk.DescriptorSetLayoutBinding{.{
         .binding = 0,
         .descriptorType = .UNIFORM_BUFFER,
         .descriptorCount = 1,
-        .stageFlags = vk.ShaderStageFlagBits.VERTEX_BIT,
+        .stageFlags = .{ .vertex = true },
         .pImmutableSamplers = null,
     }};
 
@@ -740,14 +728,14 @@ fn createImageViews(allocator: *Allocator) !void {
             .image = swap_chain_image,
             .viewType = .T_2D,
             .format = swapChainImageFormat,
-            .components = vk.ComponentMapping{
+            .components = .{
                 .r = .IDENTITY,
                 .g = .IDENTITY,
                 .b = .IDENTITY,
                 .a = .IDENTITY,
             },
-            .subresourceRange = vk.ImageSubresourceRange{
-                .aspectMask = vk.ImageAspectFlagBits.COLOR_BIT,
+            .subresourceRange = .{
+                .aspectMask = .{ .color = true },
                 .baseMipLevel = 0,
                 .levelCount = 1,
                 .baseArrayLayer = 0,
@@ -761,7 +749,7 @@ fn createImageViews(allocator: *Allocator) !void {
 
 fn chooseSwapSurfaceFormat(availableFormats: []vk.SurfaceFormatKHR) vk.SurfaceFormatKHR {
     if (availableFormats.len == 1 and availableFormats[0].format == .UNDEFINED) {
-        return vk.SurfaceFormatKHR{
+        return .{
             .format = .B8G8R8A8_UNORM,
             .colorSpace = .SRGB_NONLINEAR,
         };
@@ -801,8 +789,8 @@ fn chooseSwapExtent(capabilities: vk.SurfaceCapabilitiesKHR) vk.Extent2D {
             .height = HEIGHT,
         };
 
-        actualExtent.width = std.math.max(capabilities.minImageExtent.width, std.math.min(capabilities.maxImageExtent.width, actualExtent.width));
-        actualExtent.height = std.math.max(capabilities.minImageExtent.height, std.math.min(capabilities.maxImageExtent.height, actualExtent.height));
+        actualExtent.width = math.max(capabilities.minImageExtent.width, math.min(capabilities.maxImageExtent.width, actualExtent.width));
+        actualExtent.height = math.max(capabilities.minImageExtent.height, math.min(capabilities.maxImageExtent.height, actualExtent.height));
 
         return actualExtent;
     }
@@ -836,14 +824,14 @@ fn createSwapChain(allocator: *Allocator) !void {
         .imageColorSpace = surfaceFormat.colorSpace,
         .imageExtent = extent,
         .imageArrayLayers = 1,
-        .imageUsage = vk.ImageUsageFlagBits.COLOR_ATTACHMENT_BIT,
+        .imageUsage = .{ .colorAttachment = true },
 
         .imageSharingMode = if (different_families) .CONCURRENT else .EXCLUSIVE,
-        .queueFamilyIndexCount = if (different_families) u32(2) else u32(0),
+        .queueFamilyIndexCount = if (different_families) @as(u32, 2) else @as(u32, 0),
         .pQueueFamilyIndices = if (different_families) &queueFamilyIndices else &([_]u32{ 0, 0 }),
 
         .preTransform = swapChainSupport.capabilities.currentTransform,
-        .compositeAlpha = vk.CompositeAlphaFlagBitsKHR.OPAQUE_BIT,
+        .compositeAlpha = .{ .opaque = true },
         .presentMode = presentMode,
         .clipped = vk.TRUE,
 
@@ -876,71 +864,15 @@ fn createLogicalDevice(allocator: *Allocator) !void {
         const queueCreateInfo = vk.DeviceQueueCreateInfo{
             .queueFamilyIndex = queueFamily,
             .queueCount = 1,
-            .pQueuePriorities = util.arrayPtr(&queuePriority),
+            .pQueuePriorities = arrayPtr(&queuePriority),
         };
         try queueCreateInfos.append(queueCreateInfo);
     }
 
-    const deviceFeatures = vk.PhysicalDeviceFeatures{
-        .robustBufferAccess = 0,
-        .fullDrawIndexUint32 = 0,
-        .imageCubeArray = 0,
-        .independentBlend = 0,
-        .geometryShader = 0,
-        .tessellationShader = 0,
-        .sampleRateShading = 0,
-        .dualSrcBlend = 0,
-        .logicOp = 0,
-        .multiDrawIndirect = 0,
-        .drawIndirectFirstInstance = 0,
-        .depthClamp = 0,
-        .depthBiasClamp = 0,
-        .fillModeNonSolid = 0,
-        .depthBounds = 0,
-        .wideLines = 0,
-        .largePoints = 0,
-        .alphaToOne = 0,
-        .multiViewport = 0,
-        .samplerAnisotropy = 0,
-        .textureCompressionETC2 = 0,
-        .textureCompressionASTC_LDR = 0,
-        .textureCompressionBC = 0,
-        .occlusionQueryPrecise = 0,
-        .pipelineStatisticsQuery = 0,
-        .vertexPipelineStoresAndAtomics = 0,
-        .fragmentStoresAndAtomics = 0,
-        .shaderTessellationAndGeometryPointSize = 0,
-        .shaderImageGatherExtended = 0,
-        .shaderStorageImageExtendedFormats = 0,
-        .shaderStorageImageMultisample = 0,
-        .shaderStorageImageReadWithoutFormat = 0,
-        .shaderStorageImageWriteWithoutFormat = 0,
-        .shaderUniformBufferArrayDynamicIndexing = 0,
-        .shaderSampledImageArrayDynamicIndexing = 0,
-        .shaderStorageBufferArrayDynamicIndexing = 0,
-        .shaderStorageImageArrayDynamicIndexing = 0,
-        .shaderClipDistance = 0,
-        .shaderCullDistance = 0,
-        .shaderFloat64 = 0,
-        .shaderInt64 = 0,
-        .shaderInt16 = 0,
-        .shaderResourceResidency = 0,
-        .shaderResourceMinLod = 0,
-        .sparseBinding = 0,
-        .sparseResidencyBuffer = 0,
-        .sparseResidencyImage2D = 0,
-        .sparseResidencyImage3D = 0,
-        .sparseResidency2Samples = 0,
-        .sparseResidency4Samples = 0,
-        .sparseResidency8Samples = 0,
-        .sparseResidency16Samples = 0,
-        .sparseResidencyAliased = 0,
-        .variableMultisampleRate = 0,
-        .inheritedQueries = 0,
-    };
+    var deviceFeatures = mem.zeroes(vk.PhysicalDeviceFeatures);
 
     const createInfo = vk.DeviceCreateInfo{
-        .queueCreateInfoCount = @intCast(u32, queueCreateInfos.len),
+        .queueCreateInfoCount = @intCast(u32, queueCreateInfos.items.len),
         .pQueueCreateInfos = queueCreateInfos.items.ptr,
 
         .pEnabledFeatures = &deviceFeatures,
@@ -989,7 +921,7 @@ fn findQueueFamilies(allocator: *Allocator, device: vk.PhysicalDevice) !QueueFam
     var i: u32 = 0;
     for (queueFamilies) |queueFamily| {
         if (queueFamily.queueCount > 0 and
-            queueFamily.queueFlags & vk.QueueFlagBits.GRAPHICS_BIT != 0)
+            queueFamily.queueFlags.graphics)
         {
             indices.graphicsFamily = i;
         }
@@ -1019,7 +951,7 @@ fn isDeviceSuitable(allocator: *Allocator, device: vk.PhysicalDevice) !bool {
     if (extensionsSupported) {
         var swapChainSupport = try querySwapChainSupport(allocator, device);
         defer swapChainSupport.deinit();
-        swapChainAdequate = swapChainSupport.formats.len != 0 and swapChainSupport.presentModes.len != 0;
+        swapChainAdequate = swapChainSupport.formats.items.len != 0 and swapChainSupport.presentModes.items.len != 0;
     }
 
     return indices.isComplete() and extensionsSupported and swapChainAdequate;
@@ -1053,7 +985,7 @@ fn checkDeviceExtensionSupport(allocator: *Allocator, device: vk.PhysicalDevice)
 
     var availableExtensions = (try vk.EnumerateDeviceExtensionProperties(device, null, availableExtensionsBuf)).properties;
 
-    var requiredExtensions = std.HashMap([*]const u8, void, hash_cstr, eql_cstr).init(allocator);
+    var requiredExtensions = std.HashMap([*:0]const u8, void, hash_cstr, eql_cstr).init(allocator);
     defer requiredExtensions.deinit();
     for (deviceExtensions) |device_ext| {
         _ = try requiredExtensions.put(device_ext, {});
@@ -1072,10 +1004,7 @@ fn createSurface(window: *glfw.GLFWwindow) !void {
     }
 }
 
-// TODO https://github.com/ziglang/zig/issues/661
-// Doesn't work on Windows until the above is fixed, because
-// this function needs to be stdcallcc on Windows.
-extern fn debugCallback(
+fn debugCallback(
     flags: vk.DebugReportFlagsEXT,
     objType: vk.DebugReportObjectTypeEXT,
     obj: u64,
@@ -1084,8 +1013,8 @@ extern fn debugCallback(
     layerPrefix: ?vk.CString,
     msg: ?vk.CString,
     userData: ?*c_void,
-) vk.Bool32 {
-    std.debug.warn("validation layer: {s}\n", msg);
+) callconv(.C) vk.Bool32 {
+    std.debug.warn("validation layer: {s}\n", .{msg});
     return vk.FALSE;
 }
 
@@ -1093,7 +1022,7 @@ fn setupDebugCallback() error{FailedToSetUpDebugCallback}!void {
     if (!enableValidationLayers) return;
 
     var createInfo = vk.DebugReportCallbackCreateInfoEXT{
-        .flags = vk.DebugReportFlagBitsEXT.ERROR_BIT | vk.DebugReportFlagBitsEXT.WARNING_BIT,
+        .flags = .{ .errorBit = true, .warning = true },
         .pfnCallback = debugCallback,
         .pUserData = null,
     };
@@ -1106,9 +1035,9 @@ fn setupDebugCallback() error{FailedToSetUpDebugCallback}!void {
 fn DestroyDebugReportCallbackEXT(
     pAllocator: ?*const vk.AllocationCallbacks,
 ) void {
-    const func = @ptrCast(?@typeOf(vk.vkDestroyDebugReportCallbackEXT), vk.GetInstanceProcAddr(
+    const func = @ptrCast(?@TypeOf(vk.vkDestroyDebugReportCallbackEXT), vk.GetInstanceProcAddr(
         instance,
-        c"vkDestroyDebugReportCallbackEXT",
+        "vkDestroyDebugReportCallbackEXT",
     )) orelse unreachable;
     func(instance, callback, pAllocator);
 }
@@ -1118,9 +1047,9 @@ fn CreateDebugReportCallbackEXT(
     pAllocator: ?*const vk.AllocationCallbacks,
     pCallback: *vk.DebugReportCallbackEXT,
 ) vk.Result {
-    const func = @ptrCast(?@typeOf(vk.vkCreateDebugReportCallbackEXT), vk.GetInstanceProcAddr(
+    const func = @ptrCast(?@TypeOf(vk.vkCreateDebugReportCallbackEXT), vk.GetInstanceProcAddr(
         instance,
-        c"vkCreateDebugReportCallbackEXT",
+        "vkCreateDebugReportCallbackEXT",
     )) orelse return .ERROR_EXTENSION_NOT_PRESENT;
     return func(instance, pCreateInfo, pAllocator, pCallback);
 }
@@ -1133,9 +1062,9 @@ fn createInstance(allocator: *Allocator) !void {
     }
 
     const appInfo = vk.ApplicationInfo{
-        .pApplicationName = c"Hello Triangle",
+        .pApplicationName = "Hello Triangle",
         .applicationVersion = vk.MAKE_VERSION(1, 0, 0),
-        .pEngineName = c"No Engine",
+        .pEngineName = "No Engine",
         .engineVersion = vk.MAKE_VERSION(1, 0, 0),
         .apiVersion = vk.API_VERSION_1_0,
     };
@@ -1155,11 +1084,11 @@ fn createInstance(allocator: *Allocator) !void {
 }
 
 /// caller must free returned memory
-fn getRequiredExtensions(allocator: *Allocator) ![][*]const u8 {
+fn getRequiredExtensions(allocator: *Allocator) ![]vk.CString {
     var glfwExtensionCount: u32 = 0;
-    var glfwExtensions: [*]const [*]const u8 = glfw.glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    var glfwExtensions: [*]const vk.CString = glfw.glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-    var extensions = std.ArrayList([*]const u8).init(allocator);
+    var extensions = std.ArrayList(vk.CString).init(allocator);
     errdefer extensions.deinit();
 
     try extensions.appendSlice(glfwExtensions[0..glfwExtensionCount]);
@@ -1198,15 +1127,15 @@ fn checkValidationLayerSupport(allocator: *Allocator) !bool {
 }
 
 fn drawFrame() !void {
-    _ = try vk.WaitForFences(global_device, inFlightFences[currentFrame..currentFrame+1], vk.TRUE, maxInt(u64));
-    try vk.ResetFences(global_device, inFlightFences[currentFrame..currentFrame+1]);
+    _ = try vk.WaitForFences(global_device, inFlightFences[currentFrame .. currentFrame + 1], vk.TRUE, maxInt(u64));
+    try vk.ResetFences(global_device, inFlightFences[currentFrame .. currentFrame + 1]);
 
     var imageIndex = (try vk.AcquireNextImageKHR(global_device, swapChain, maxInt(u64), imageAvailableSemaphores[currentFrame], null)).imageIndex;
 
     try updateUniformBuffer(imageIndex);
 
     var waitSemaphores = [_]vk.Semaphore{imageAvailableSemaphores[currentFrame]};
-    var waitStages = [_]vk.PipelineStageFlags{vk.PipelineStageFlagBits.COLOR_ATTACHMENT_OUTPUT_BIT};
+    var waitStages: [1]vk.PipelineStageFlags align(4) = .{.{ .colorAttachmentOutput = true }};
 
     const signalSemaphores = [_]vk.Semaphore{renderFinishedSemaphores[currentFrame]};
 
@@ -1218,21 +1147,19 @@ fn drawFrame() !void {
         .pCommandBuffers = commandBuffers.ptr + imageIndex,
         .signalSemaphoreCount = 1,
         .pSignalSemaphores = &signalSemaphores,
-
     }};
 
-    try vk.QueueSubmit(graphicsQueue, submitInfo, inFlightFences[currentFrame]);
+    try vk.QueueSubmit(graphicsQueue, &submitInfo, inFlightFences[currentFrame]);
 
     const swapChains = [_]vk.SwapchainKHR{swapChain};
     const presentInfo = vk.PresentInfoKHR{
-
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = &signalSemaphores,
 
         .swapchainCount = 1,
         .pSwapchains = &swapChains,
 
-        .pImageIndices = (*[1]u32)(&imageIndex),
+        .pImageIndices = arrayPtr(&imageIndex),
 
         .pResults = null,
     };
@@ -1254,20 +1181,20 @@ fn updateUniformBuffer(index: u32) !void {
     };
 
     geo.Generic.setMat3(&ubo.model, Rotor3.aroundZ(time * math.pi * 0.5).toMat3());
-    ubo.proj = geo.symmetricOrtho(1, -f32(HEIGHT) / f32(WIDTH), -1, 1);
+    ubo.proj = geo.symmetricOrtho(1, -@as(f32, HEIGHT) / @as(f32, WIDTH), -1, 1);
 
     if (!hasDumped) {
-        std.debug.warn("proj = {}\n", ubo.proj);
+        std.debug.warn("proj = {}\n", .{ubo.proj});
         hasDumped = true;
     }
 
     var data: *c_void = undefined;
-    try vk.MapMemory(global_device, uniformBuffersMemory[index], 0, @sizeOf(UniformBufferObject), 0, &data);
+    try vk.MapMemory(global_device, uniformBuffersMemory[index], 0, @sizeOf(UniformBufferObject), .{}, &data);
     @memcpy(@ptrCast([*]u8, data), @ptrCast([*]const u8, &ubo), @sizeOf(UniformBufferObject));
     vk.UnmapMemory(global_device, uniformBuffersMemory[index]);
 }
 
-fn hash_cstr(a: [*]const u8) u32 {
+fn hash_cstr(a: [*:0]const u8) u32 {
     // FNV 32-bit hash
     var h: u32 = 2166136261;
     var i: usize = 0;
@@ -1278,6 +1205,6 @@ fn hash_cstr(a: [*]const u8) u32 {
     return h;
 }
 
-fn eql_cstr(a: [*]const u8, b: [*]const u8) bool {
+fn eql_cstr(a: [*:0]const u8, b: [*:0]const u8) bool {
     return std.cstr.cmp(a, b) == 0;
 }

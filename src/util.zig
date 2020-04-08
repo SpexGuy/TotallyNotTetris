@@ -2,35 +2,34 @@ const std = @import("std");
 const assert = std.debug.assert;
 
 fn ArrayPtrType(comptime ptrType: type) type {
-    const info = @typeInfo(ptrType);
-    switch (info) {
-        .Pointer => |ptrInfo| {
-            assert(!ptrInfo.is_volatile);
-            assert(!ptrInfo.is_allowzero);
-            return if (ptrInfo.is_const) [*]const ptrInfo.child else [*]ptrInfo.child;
-        },
-        else => @compileError("arrayPtr can only operate on a pointer type!"),
+    comptime {
+        // Check that the input is of type *T
+        var info = @typeInfo(ptrType);
+        assert(info == .Pointer);
+        assert(info.Pointer.size == .One);
+        assert(info.Pointer.sentinel == null);
+
+        // Create the new value type, [1]T
+        const arrayInfo = std.builtin.TypeInfo{
+            .Array = .{
+                .len = 1,
+                .child = info.Pointer.child,
+                .sentinel = @as(?info.Pointer.child, null),
+            },
+        };
+
+        // Patch the type to be *[1]T, preserving pointer modifiers
+        const singleArrayType = @Type(arrayInfo);
+        info.Pointer.child = singleArrayType;
+        // also need to change the type of the sentinel
+        // we checked that this is null above so no work needs to be done here.
+        info.Pointer.sentinel = @as(?singleArrayType, null);
+        return @Type(info);
     }
 }
 
-fn SingleSliceType(comptime ptrType: type) type {
-    const info = @typeInfo(ptrType);
-    switch (info) {
-        .Pointer => |ptrInfo| {
-            assert(!ptrInfo.is_volatile);
-            assert(!ptrInfo.is_allowzero);
-            return if (ptrInfo.is_const) []const ptrInfo.child else []ptrInfo.child;
-        },
-        else => @compileError("singleSlice can only operate on a pointer type!"),
-    }
-}
-
-pub fn arrayPtr(ptr: var) ArrayPtrType(@typeOf(ptr)) {
-    return @ptrCast(ArrayPtrType(@typeOf(ptr)), ptr);
-}
-
-pub fn singleSlice(ptr: var) SingleSliceType(@typeOf(ptr)) {
-    return arrayPtr(ptr)[0..1];
+pub fn arrayPtr(ptr: var) ArrayPtrType(@TypeOf(ptr)) {
+    return @as(ArrayPtrType(@TypeOf(ptr)), ptr);
 }
 
 pub fn emptySlice(comptime T: type) []T {

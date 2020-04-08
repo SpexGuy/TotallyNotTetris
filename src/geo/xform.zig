@@ -15,15 +15,15 @@ const Rotor2 = rotors.Rotor2;
 const Rotor3 = rotors.Rotor3;
 
 pub const Transform2 = struct {
-    pub rotation: Rotor2,
-    pub translation: Vec2,
-    pub scale: Vec2,
+    rotation: Rotor2,
+    translation: Vec2,
+    scale: Vec2,
 };
 
 pub const Transform3 = struct {
-    pub rotation: Rotor3,
-    pub translation: Vec3,
-    pub scale: Vec3,
+    rotation: Rotor3,
+    translation: Vec3,
+    scale: Vec3,
 
     pub fn toMat3(self: Transform3) Mat3x3 {
         return self.rotation.toMat3().preScaleVec(self.scale);

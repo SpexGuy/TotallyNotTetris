@@ -2,15 +2,15 @@ const std = @import("std");
 const path = std.fs.path;
 const Builder = std.build.Builder;
 
-const glslc_command = if (std.os.windows.is_the_target) "tools/win/glslc.exe" else "glslc";
+const glslc_command = if (std.builtin.os.tag == .windows) "tools/win/glslc.exe" else "glslc";
 
 pub fn build(b: *Builder) !void {
     const mode = b.standardReleaseOptions();
     const exe = b.addExecutable("zig-vulkan-triangle", "src/main.zig");
     exe.setBuildMode(mode);
     exe.linkSystemLibrary("c");
-    exe.addCSourceFile("extern_c/stb/stb_image.c", [_][]const u8{ "-std=c99", "-DSTB_IMAGE_IMPLEMENTATION=1" });
-    if (std.os.windows.is_the_target) {
+    exe.addCSourceFile("extern_c/stb/stb_image.c", &[_][]const u8{ "-std=c99", "-DSTB_IMAGE_IMPLEMENTATION=1" });
+    if (std.builtin.os.tag == .windows) {
         exe.linkSystemLibrary("lib/win/glfw3dll");
         exe.linkSystemLibrary("lib/win/vulkan-1");
     } else {
@@ -33,10 +33,10 @@ fn addShader(b: *Builder, exe: var, in_file: []const u8, out_file: []const u8) !
     // example:
     // glslc -o shaders/vert.spv shaders/shader.vert
     const dirname = "shaders";
-    const full_in = try path.join(b.allocator, [_][]const u8{ dirname, in_file });
-    const full_out = try path.join(b.allocator, [_][]const u8{ dirname, out_file });
+    const full_in = try path.join(b.allocator, &[_][]const u8{ dirname, in_file });
+    const full_out = try path.join(b.allocator, &[_][]const u8{ dirname, out_file });
 
-    const run_cmd = b.addSystemCommand([_][]const u8{
+    const run_cmd = b.addSystemCommand(&[_][]const u8{
         glslc_command,
         "-o",
         full_out,
