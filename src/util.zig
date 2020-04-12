@@ -1,6 +1,8 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
+/// Takes a pointer type like *T, *const T, *align(4)T, etc,
+/// returns the pointer type *[1]T, *const [1]T, *align(4) [1]T, etc.
 fn ArrayPtrType(comptime ptrType: type) type {
     comptime {
         // Check that the input is of type *T
@@ -18,7 +20,7 @@ fn ArrayPtrType(comptime ptrType: type) type {
             },
         };
 
-        // Patch the type to be *[1]T, preserving pointer modifiers
+        // Patch the type to be *[1]T, preserving other modifiers
         const singleArrayType = @Type(arrayInfo);
         info.Pointer.child = singleArrayType;
         // also need to change the type of the sentinel

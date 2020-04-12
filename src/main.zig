@@ -1013,7 +1013,7 @@ fn debugCallback(
     layerPrefix: ?vk.CString,
     msg: ?vk.CString,
     userData: ?*c_void,
-) callconv(.C) vk.Bool32 {
+) callconv(vk.CallConv) vk.Bool32 {
     std.debug.warn("validation layer: {s}\n", .{msg});
     return vk.FALSE;
 }
