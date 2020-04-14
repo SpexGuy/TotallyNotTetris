@@ -34,6 +34,6 @@ pub fn arrayPtr(ptr: var) ArrayPtrType(@TypeOf(ptr)) {
     return @as(ArrayPtrType(@TypeOf(ptr)), ptr);
 }
 
-pub fn emptySlice(comptime T: type) []T {
-    return ([_]T{})[0..0];
+pub fn emptySlice(comptime T: type) *const [0]T {
+    return &[_]T{};
 }

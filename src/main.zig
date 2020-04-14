@@ -800,8 +800,8 @@ fn createSwapChain(allocator: *Allocator) !void {
     var swapChainSupport = try querySwapChainSupport(allocator, physicalDevice);
     defer swapChainSupport.deinit();
 
-    const surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats.toSlice());
-    const presentMode = chooseSwapPresentMode(swapChainSupport.presentModes.toSlice());
+    const surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats.items);
+    const presentMode = chooseSwapPresentMode(swapChainSupport.presentModes.items);
     const extent = chooseSwapExtent(swapChainSupport.capabilities);
 
     var imageCount: u32 = swapChainSupport.capabilities.minImageCount + 1;
@@ -1005,7 +1005,7 @@ fn createSurface(window: *glfw.GLFWwindow) !void {
 }
 
 fn debugCallback(
-    flags: vk.DebugReportFlagsEXT,
+    flags: vk.DebugReportFlagsEXT.IntType,
     objType: vk.DebugReportObjectTypeEXT,
     obj: u64,
     location: usize,
